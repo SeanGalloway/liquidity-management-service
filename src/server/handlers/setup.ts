@@ -1,7 +1,7 @@
 import 'server-only';
 import { createRoute } from '@hono/zod-openapi';
 import { SetupRequest, SetupStatus } from '@shared/contracts';
-import { notImplemented } from '../domain/errors';
+import type { Container } from '../container';
 import { createRouter, errorBody, jsonBody } from '../openapi';
 
 const getSetup = createRoute({
@@ -25,8 +25,13 @@ const postSetup = createRoute({
   },
 });
 
-export function setupRoutes() {
+export function setupRoutes({ setup }: Container) {
   return createRouter()
-    .openapi(getSetup, () => notImplemented('GET /setup'))
-    .openapi(postSetup, () => notImplemented('POST /setup'));
+    .openapi(getSetup, async (c) => {
+      return c.json(await setup.getSetupStatus(), 200);
+    })
+    .openapi(postSetup, async (c) => {
+      const { startingBalanceCents } = c.req.valid('json');
+      return c.json(await setup.initializeDesk(startingBalanceCents), 202);
+    });
 }

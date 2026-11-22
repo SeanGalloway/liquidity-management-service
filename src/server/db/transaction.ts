@@ -7,19 +7,22 @@ export function withTransaction<T>(db: Database, work: (trx: Transaction<DB>) =>
   return db.transaction().execute(work);
 }
 
-export async function withAdvisoryLock<T>(
+export function withAdvisoryLock<T>(
   db: Database,
   lockName: string,
-  work: (trx: Transaction<DB>) => Promise<T>,
+  work: () => Promise<T>,
 ): Promise<{ acquired: false } | { acquired: true; result: T }> {
-  return withTransaction(db, async (trx) => {
+  return db.connection().execute(async (connection) => {
     const { rows } = await sql<{ acquired: boolean }>`
-      select pg_try_advisory_xact_lock(hashtext(${lockName})) as acquired
-    `.execute(trx);
+      select pg_try_advisory_lock(hashtext(${lockName})) as acquired
+    `.execute(connection);
 
     if (!rows[0]?.acquired) return { acquired: false };
 
-    const result = await work(trx);
-    return { acquired: true, result };
+    try {
+      return { acquired: true, result: await work() };
+    } finally {
+      await sql`select pg_advisory_unlock(hashtext(${lockName}))`.execute(connection);
+    }
   });
 }

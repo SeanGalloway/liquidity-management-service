@@ -284,10 +284,14 @@ export const PayCashflowsResult = z
   .object({ paid: z.number().int(), totalCents: Cents })
   .meta({ id: 'PayCashflowsResult' });
 
+export const SkippedJob = z
+  .object({ skipped: z.literal(true) })
+  .meta({ id: 'SkippedJob', description: 'Another run of this job holds the lock' });
+
 export const BackfillResult = z
   .object({
-    seeded: z.number().int(),
     fetched: z.number().int(),
+    inserted: z.number().int(),
     earliest: IsoDate.nullable(),
     latest: IsoDate.nullable(),
   })
