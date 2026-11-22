@@ -38,7 +38,7 @@ describe('api app', () => {
     const doc = await response.json();
 
     expect(response.status).toBe(200);
-    expect(Object.keys(doc.paths)).toHaveLength(18);
+    expect(Object.keys(doc.paths)).toHaveLength(17);
     expect(doc.components.schemas).toHaveProperty('Order');
   });
 

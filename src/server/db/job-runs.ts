@@ -43,3 +43,13 @@ export function findLatestJobRun(job: string, ex: Executor): Promise<JobRun | un
     .limit(1)
     .executeTakeFirst();
 }
+
+export function markStaleJobRunsFailed(job: string, ex: Executor): Promise<JobRun[]> {
+  return ex
+    .updateTable('jobRuns')
+    .set({ status: 'failed', finishedAt: sql`now()`, error: 'Interrupted before finishing' })
+    .where('job', '=', job)
+    .where('status', '=', 'running')
+    .returningAll()
+    .execute();
+}

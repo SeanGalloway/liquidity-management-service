@@ -19,7 +19,7 @@ export type YieldCoverage = {
   rows: number;
 };
 
-export async function insertYieldObservations(points: CurvePoint[], ex: Executor): Promise<number> {
+export async function upsertYieldObservations(points: CurvePoint[], ex: Executor): Promise<number> {
   if (points.length === 0) return 0;
 
   const records = points.map((point) => ({
@@ -37,7 +37,9 @@ export async function insertYieldObservations(points: CurvePoint[], ex: Executor
       tenor_code text, observed_at timestamptz, as_of_date date, yield_bps numeric, source text
     )
     join tenors t on t.code = p.tenor_code
-    on conflict do nothing
+    on conflict (source, tenor_id, observed_at) do update
+      set yield_bps = excluded.yield_bps, fetched_at = now()
+      where yields.yield_bps is distinct from excluded.yield_bps
   `.execute(ex);
 
   return Number(result.numAffectedRows ?? 0);

@@ -31,7 +31,11 @@ export function yieldRoutes({ yields }: Container) {
     })
     .openapi(getYieldHistory, async (c) => {
       const { tenors, from, to } = c.req.valid('query');
-      const series = await yields.listYieldHistory(tenors.split(','), { from, to });
+      const tenorCodes = tenors
+        .split(',')
+        .map((code) => code.trim())
+        .filter(Boolean);
+      const series = await yields.listYieldHistory(tenorCodes, { from, to });
       return c.json({ series: series.map(toSeriesDto) }, 200);
     });
 }

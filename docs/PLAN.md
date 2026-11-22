@@ -102,9 +102,8 @@ Two tabs, brokerage-style:
 | Endpoint | Schedule | Notes |
 |---|---|---|
 | `POST /api/jobs/fill-orders` | every 10s | Claims due pending orders (`execute_after <= now()`) with `FOR UPDATE SKIP LOCKED`, bounded batch |
-| `POST /api/jobs/poll-yields` | every 15m | Fetches latest close; no-op until a new day's row exists; fills gaps |
+| `POST /api/jobs/sync-yields` | on start + every 15m (+ after setup) | Fetches missing closes (12 months when empty); upserts |
 | `POST /api/jobs/pay-cashflows` | on startup + daily | Pays due scheduled cashflows; idempotent |
-| `POST /api/jobs/backfill-yields` | on demand (setup wizard) | Fetch the last 12 months |
 
 - Simulated delay is a timestamp (`execute_after = created_at + 2–5s`), not a `sleep` in the
   request, so no transaction or request is held open. Fill latency ≈ delay + up to one tick.
@@ -179,9 +178,8 @@ Same `Idempotency-Key` + same body → original order (`200`); different body �
 |---|---|---|
 | GET | `/health` | `{ ok, db, latestYieldAsOf }` — scheduler waits on this |
 | POST | `/jobs/fill-orders` | Job token. `{ claimed, executed, rejected, failed }` |
-| POST | `/jobs/poll-yields` | Job token. `{ fetched, inserted, latestAsOf }` |
+| POST | `/jobs/sync-yields` | Job token. `{ fetched, stored, earliest, latest }` |
 | POST | `/jobs/pay-cashflows` | Job token. `{ paid, totalCents }` |
-| POST | `/jobs/backfill-yields` | Job token. `{ fetched, inserted, earliest, latest }` |
 
 ---
 
@@ -545,7 +543,7 @@ create index cashflows_due_idx on scheduled_cashflows (pay_date) where status = 
 ```sql
 create table job_runs (
   id           uuid primary key default uuidv7(),
-  job          text not null,                   -- 'fill-orders' | 'poll-yields' | …
+  job          text not null,                   -- 'sync-yields' | 'pay-cashflows'
   status       text not null check (status in ('running','succeeded','failed')),
   started_at   timestamptz not null default now(),
   finished_at  timestamptz,

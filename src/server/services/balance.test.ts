@@ -12,20 +12,21 @@ describe('postLedgerEntry', () => {
       [{ ...BALANCE, amountCents: 400_00 }],
     ]);
 
-    const entry = await db.transaction().execute((trx) =>
-      createBalanceService().postLedgerEntry(trx, {
-        reason: 'buy',
-        amountCents: -600_00,
-        orderId: 'order-1',
-      }),
-    );
+    const entry = await db
+      .transaction()
+      .execute((trx) =>
+        createBalanceService().postLedgerEntry(
+          { reason: 'buy', amountCents: -600_00, orderId: 'order-1' },
+          trx,
+        ),
+      );
 
     expect(entry.id).toBe('entry-1');
     expect(sql()).toEqual([
       'begin',
-      'select * from "balance" for update',
+      'select * from "balance" where "id" = $1 for update',
       'insert into "ledger_entries" ("reason", "amount_cents", "order_id", "balance_after_cents") values ($1, $2, $3, $4) returning *',
-      'update "balance" set "amount_cents" = $1, "updated_at" = now() returning *',
+      'update "balance" set "amount_cents" = $1, "updated_at" = now() where "id" = $2 returning *',
       'commit',
     ]);
     expect(queries[2]?.parameters).toEqual(['buy', -600_00, 'order-1', 400_00]);
@@ -37,10 +38,14 @@ describe('postLedgerEntry', () => {
     const attempt = db
       .transaction()
       .execute((trx) =>
-        createBalanceService().postLedgerEntry(trx, { reason: 'buy', amountCents: -1_000_01 }),
+        createBalanceService().postLedgerEntry({ reason: 'buy', amountCents: -1_000_01 }, trx),
       );
 
     await expect(attempt).rejects.toMatchObject({ code: 'INSUFFICIENT_FUNDS' });
-    expect(sql()).toEqual(['begin', 'select * from "balance" for update', 'rollback']);
+    expect(sql()).toEqual([
+      'begin',
+      'select * from "balance" where "id" = $1 for update',
+      'rollback',
+    ]);
   });
 });

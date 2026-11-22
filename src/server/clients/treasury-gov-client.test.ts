@@ -31,8 +31,24 @@ describe('parseParYieldCsv', () => {
     expect(january).toHaveLength(13);
   });
 
-  it('rejects an unexpected header', () => {
+  it('rejects an unexpected header, including a renamed tenor column', () => {
     expect(() => parseParYieldCsv('Foo,Bar\n1,2')).toThrow('Unexpected Treasury CSV header');
+
+    const renamed = FIXTURE.replace('"1.5 Month"', '"1.5 Mo"');
+    expect(() => parseParYieldCsv(renamed)).toThrow('Unexpected Treasury CSV header');
+  });
+
+  it('treats an empty body as no data', () => {
+    expect(parseParYieldCsv('')).toEqual([]);
+    expect(parseParYieldCsv('\n')).toEqual([]);
+  });
+
+  it('skips non-numeric cells instead of failing the whole file', () => {
+    const withNa = FIXTURE.replace('11/20/2026,4.19,', '11/20/2026,N/A,');
+    const day = parseParYieldCsv(withNa).filter((point) => point.asOfDate === '2026-11-20');
+
+    expect(day.map((point) => point.tenorCode)).not.toContain('1M');
+    expect(day).toHaveLength(13);
   });
 });
 

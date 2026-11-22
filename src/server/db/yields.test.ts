@@ -4,7 +4,7 @@ import {
   findCurveObservations,
   findYieldCoverage,
   findYieldHistory,
-  insertYieldObservations,
+  upsertYieldObservations,
 } from './yields';
 
 const POINT = {
@@ -19,19 +19,20 @@ describe('yields repository', () => {
   it('skips the insert when there are no points', async () => {
     const { db, queries } = createRecordingDb();
 
-    expect(await insertYieldObservations([], db)).toBe(0);
+    expect(await upsertYieldObservations([], db)).toBe(0);
     expect(queries).toHaveLength(0);
   });
 
-  it('inserts all points in one idempotent statement keyed by tenor code', async () => {
+  it('upserts all points in one statement keyed by tenor code, updating only changed values', async () => {
     const { db, queries } = createRecordingDb([{ rows: [], numAffectedRows: 1n }]);
 
-    const inserted = await insertYieldObservations([POINT], db);
+    const inserted = await upsertYieldObservations([POINT], db);
 
     expect(inserted).toBe(1);
     expect(queries).toHaveLength(1);
     expect(queries[0]?.sql).toContain('jsonb_to_recordset');
-    expect(queries[0]?.sql).toContain('on conflict do nothing');
+    expect(queries[0]?.sql).toContain('on conflict (source, tenor_id, observed_at) do update');
+    expect(queries[0]?.sql).toContain('where yields.yield_bps is distinct from excluded.yield_bps');
     expect(JSON.parse(String(queries[0]?.parameters[0]))).toEqual([
       {
         tenor_code: '3M',

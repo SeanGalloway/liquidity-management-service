@@ -2,11 +2,10 @@ import 'server-only';
 import { createRoute } from '@hono/zod-openapi';
 import { z } from 'zod';
 import {
-  BackfillResult,
   FillOrdersResult,
   PayCashflowsResult,
-  PollYieldsResult,
   SkippedJob,
+  SyncYieldsResult,
 } from '@shared/contracts';
 import type { Container } from '../container';
 import { notImplemented } from '../domain/errors';
@@ -28,30 +27,25 @@ function jobRoute<T extends z.ZodType>(path: string, summary: string, result: T)
 }
 
 const fillOrders = jobRoute('/fill-orders', 'Fill due pending orders', FillOrdersResult);
-const pollYields = jobRoute('/poll-yields', 'Fetch the latest close if new', PollYieldsResult);
+const syncYields = jobRoute(
+  '/sync-yields',
+  'Fetch closes missing since the latest stored one (12 months when empty)',
+  SyncYieldsResult,
+);
 const payCashflows = jobRoute(
   '/pay-cashflows',
   'Pay due coupons and principal',
   PayCashflowsResult,
 );
-const backfillYields = jobRoute(
-  '/backfill-yields',
-  'Fetch the last 12 months of closes',
-  BackfillResult,
-);
 
 export function jobRoutes({ jobRuns, yields }: Container) {
   return createRouter()
     .openapi(fillOrders, () => notImplemented('Job fill-orders'))
-    .openapi(pollYields, async (c) => {
-      const outcome = await jobRuns.runExclusiveJob(JOBS.pollYields, yields.pollLatestYields);
+    .openapi(syncYields, async (c) => {
+      const outcome = await jobRuns.runExclusiveJob(JOBS.syncYields, yields.syncYields);
       return c.json(toJobResponse(outcome), 200);
     })
-    .openapi(payCashflows, () => notImplemented('Job pay-cashflows'))
-    .openapi(backfillYields, async (c) => {
-      const outcome = await jobRuns.runExclusiveJob(JOBS.backfillYields, yields.backfillYields);
-      return c.json(toJobResponse(outcome), 200);
-    });
+    .openapi(payCashflows, () => notImplemented('Job pay-cashflows'));
 }
 
 function toJobResponse<T>(outcome: ExclusiveJobOutcome<T>) {

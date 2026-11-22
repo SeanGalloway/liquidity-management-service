@@ -56,12 +56,21 @@ export async function fetchParYieldCsv(baseUrl: string, year: number): Promise<s
 }
 
 export function parseParYieldCsv(csv: string): CurvePoint[] {
+  if (!csv.trim()) return [];
+
   const [headerLine, ...rowLines] = csv.trim().split(/\r?\n/);
   const headers = splitCsvLine(headerLine ?? '');
-
-  if (headers[0] !== 'Date') throw new Error('Unexpected Treasury CSV header');
+  rejectUnexpectedHeaders(headers);
 
   return rowLines.flatMap((line) => parseRow(headers, splitCsvLine(line)));
+}
+
+function rejectUnexpectedHeaders(headers: string[]) {
+  const missing = Object.keys(HEADER_TO_TENOR).filter((header) => !headers.includes(header));
+
+  if (headers[0] !== 'Date' || missing.length > 0) {
+    throw new Error(`Unexpected Treasury CSV header: ${headers.join(',')}`);
+  }
 }
 
 function parseRow(headers: string[], cells: string[]): CurvePoint[] {
@@ -71,14 +80,18 @@ function parseRow(headers: string[], cells: string[]): CurvePoint[] {
 
   headers.forEach((header, index) => {
     const tenorCode = HEADER_TO_TENOR[header];
-    const percent = cells[index];
-    if (!tenorCode || !percent) return;
+    const percent = cells[index] ?? '';
+    if (!tenorCode || !isNumeric(percent)) return;
 
     const yieldBps = new Decimal(percent).times(100).toString();
     points.push({ tenorCode, asOfDate, observedAt, yieldBps, source: TREASURY_SOURCE });
   });
 
   return points;
+}
+
+function isNumeric(cell: string): boolean {
+  return cell !== '' && Number.isFinite(Number(cell));
 }
 
 function splitCsvLine(line: string): string[] {

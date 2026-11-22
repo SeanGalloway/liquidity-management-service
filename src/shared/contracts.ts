@@ -276,10 +276,6 @@ export const FillOrdersResult = z
   })
   .meta({ id: 'FillOrdersResult' });
 
-export const PollYieldsResult = z
-  .object({ fetched: z.number().int(), inserted: z.number().int(), latestAsOf: IsoDate.nullable() })
-  .meta({ id: 'PollYieldsResult' });
-
 export const PayCashflowsResult = z
   .object({ paid: z.number().int(), totalCents: Cents })
   .meta({ id: 'PayCashflowsResult' });
@@ -288,11 +284,11 @@ export const SkippedJob = z
   .object({ skipped: z.literal(true) })
   .meta({ id: 'SkippedJob', description: 'Another run of this job holds the lock' });
 
-export const BackfillResult = z
+export const SyncYieldsResult = z
   .object({
     fetched: z.number().int(),
-    inserted: z.number().int(),
+    stored: z.number().int().meta({ description: 'Rows inserted or corrected' }),
     earliest: IsoDate.nullable(),
     latest: IsoDate.nullable(),
   })
-  .meta({ id: 'BackfillResult' });
+  .meta({ id: 'SyncYieldsResult' });

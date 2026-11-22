@@ -22,27 +22,23 @@ function stubClient(points: CurvePoint[]) {
 }
 
 describe('yields service', () => {
-  it('backfills the last 12 months from the live feed', async () => {
+  it('syncs the last 12 months when nothing is stored', async () => {
     const live = stubClient([point('2026-11-19'), point('2026-11-20')]);
     const { db } = createRecordingDb([
+      [{ earliest: null, latest: null, rows: 0 }],
       { rows: [], numAffectedRows: 2n },
       [{ earliest: '2026-11-19', latest: '2026-11-20', rows: 2 }],
     ]);
 
     const service = createYieldsService({ db, clock, yieldsClient: live.client });
-    const result = await service.backfillYields();
+    const result = await service.syncYields();
 
     expect(live.fetchParYieldCurve).toHaveBeenCalledWith({ from: '2025-11-22', to: '2026-11-22' });
-    expect(result).toEqual({
-      fetched: 2,
-      inserted: 2,
-      earliest: '2026-11-19',
-      latest: '2026-11-20',
-    });
+    expect(result).toEqual({ fetched: 2, stored: 2, earliest: '2026-11-19', latest: '2026-11-20' });
   });
 
-  it('polls only the gap after the latest stored date', async () => {
-    const live = stubClient([point('2026-11-20')]);
+  it('re-fetches from the latest stored close so same-day corrections are picked up', async () => {
+    const live = stubClient([point('2026-11-19'), point('2026-11-20')]);
     const { db } = createRecordingDb([
       [{ earliest: '2025-11-24', latest: '2026-11-19', rows: 2 }],
       { rows: [], numAffectedRows: 1n },
@@ -50,25 +46,27 @@ describe('yields service', () => {
     ]);
 
     const service = createYieldsService({ db, clock, yieldsClient: live.client });
-    const result = await service.pollLatestYields();
+    const result = await service.syncYields();
 
-    expect(live.fetchParYieldCurve).toHaveBeenCalledWith({ from: '2026-11-20', to: '2026-11-22' });
-    expect(result).toEqual({ fetched: 1, inserted: 1, latestAsOf: '2026-11-20' });
+    expect(live.fetchParYieldCurve).toHaveBeenCalledWith({ from: '2026-11-19', to: '2026-11-22' });
+    expect(result).toEqual({ fetched: 2, stored: 1, earliest: '2025-11-24', latest: '2026-11-20' });
   });
 
   it('skips the fetch when today is already stored', async () => {
     const live = stubClient([]);
     const { db } = createRecordingDb([[{ earliest: '2026-10-29', latest: '2026-11-22', rows: 3 }]]);
 
-    const service = createYieldsService({
-      db,
-      clock,
-      yieldsClient: live.client,
-    });
-    const result = await service.pollLatestYields();
+    const service = createYieldsService({ db, clock, yieldsClient: live.client });
+    const result = await service.syncYields();
 
     expect(live.fetchParYieldCurve).not.toHaveBeenCalled();
-    expect(result).toEqual({ fetched: 0, inserted: 0, latestAsOf: '2026-11-22' });
+    expect(result).toEqual({
+      fetched: 0,
+      stored: 0,
+      earliest: '2026-10-29',
+      latest: '2026-11-22',
+      rows: 3,
+    });
   });
 
   it('builds a curve from the stored observations', async () => {
@@ -120,5 +118,18 @@ describe('yields service', () => {
       code: 'VALIDATION_FAILED',
       message: 'Unknown tenor codes: 9M',
     });
+  });
+
+  it('rejects an empty tenor list and an inverted date range', async () => {
+    const tenorRows = [{ id: 4, code: '3M', months: '3.0', kind: 'bill' }];
+    const { db } = createRecordingDb([tenorRows, tenorRows]);
+    const service = createYieldsService({ db, clock, yieldsClient: stubClient([]).client });
+
+    await expect(service.listYieldHistory([], {})).rejects.toMatchObject({
+      message: 'At least one tenor code is required',
+    });
+    await expect(
+      service.listYieldHistory(['3M'], { from: '2026-11-20', to: '2026-11-01' }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 });

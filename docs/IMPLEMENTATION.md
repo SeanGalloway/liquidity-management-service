@@ -372,3 +372,20 @@ close, and `/timeline` returns actual + projected series.
     `tenors`, `yields`, `jobs`; route paths inside each are relative (`/`, `/history`, `/{id}`).
 11. Repository functions take the executor as a **required** last parameter (no module-level `db`
     exists to default to; the container owns it).
+
+## Changes from PR review (Vertical 1)
+
+- Backfill and poll merged into one `syncYields` job (`POST /jobs/sync-yields`, lock `sync-yields`):
+  fetches from 12 months ago when empty, otherwise re-fetches from the latest stored close (so a
+  same-day correction is picked up) through today. Setup triggers it; the worker runs it on start
+  and every 15 minutes. `SyncYieldsResult = { fetched, stored, earliest, latest }`.
+- Yields are **upserted** (`do update … where yield_bps is distinct from excluded.yield_bps`).
+- `POST /setup` reports `backfill: 'running'` (the sync has been started but not yet recorded).
+- A job that takes its lock first marks leftover `running` rows for that job as `failed`
+  (`markStaleJobRunsFailed`), so a crash can't leave setup status spinning forever.
+- `withSessionAdvisoryLock` moved to `db/advisory-lock.ts`; cleanup failures are logged and never
+  replace the job's original error; stored job errors include the stack.
+- CSV parser: empty body → no data; every known tenor header must be present; non-numeric cells skipped.
+- `postLedgerEntry(movement, trx)` — executor last, like repositories. Balance lock/update target `id = 1`.
+- Tenor `kind` narrowed in the repository (`SecurityKind`), no cast in the handler.
+- History: tenor list trimmed, must be non-empty; `from > to` rejected.

@@ -17,6 +17,7 @@ describe('runExclusiveJob', () => {
   it('records the run, stores its result and releases the lock', async () => {
     const { db, sql, queries } = createRecordingDb([
       [{ acquired: true }],
+      [],
       [{ id: 'run-1' }],
       [{ id: 'run-1' }],
       [],
@@ -27,14 +28,18 @@ describe('runExclusiveJob', () => {
     }));
 
     expect(outcome).toEqual({ status: 'succeeded', result: { inserted: 14 } });
-    expect(sql()[1]).toContain('insert into "job_runs"');
-    expect(queries[2]?.parameters).toContain('{"inserted":14}');
-    expect(sql()[3]).toContain('pg_advisory_unlock');
+    expect(sql()[1]).toBe(
+      'update "job_runs" set "status" = $1, "finished_at" = now(), "error" = $2 where "job" = $3 and "status" = $4 returning *',
+    );
+    expect(sql()[2]).toContain('insert into "job_runs"');
+    expect(queries[3]?.parameters).toContain('{"inserted":14}');
+    expect(sql()[4]).toContain('pg_advisory_unlock');
   });
 
   it('marks the run failed and rethrows', async () => {
     const { db, queries, sql } = createRecordingDb([
       [{ acquired: true }],
+      [],
       [{ id: 'run-1' }],
       [{ id: 'run-1' }],
       [],
@@ -45,8 +50,20 @@ describe('runExclusiveJob', () => {
     });
 
     await expect(attempt).rejects.toThrow('treasury down');
-    expect(queries[2]?.parameters).toContain('failed');
-    expect(sql()[3]).toContain('pg_advisory_unlock');
+    expect(queries[3]?.parameters).toContain('failed');
+    expect(String(queries[3]?.parameters[2])).toContain('Error: treasury down');
+    expect(sql()[4]).toContain('pg_advisory_unlock');
+  });
+
+  it('keeps the original error when recording the failure also fails', async () => {
+    const { db } = createRecordingDb([[{ acquired: true }], [], [{ id: 'run-1' }]]);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const attempt = createJobRunsService({ db }).runExclusiveJob('poll-yields', async () => {
+      throw new Error('treasury down');
+    });
+
+    await expect(attempt).rejects.toThrow('treasury down');
   });
 
   it('maps the latest run to a job status', async () => {

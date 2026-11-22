@@ -8,14 +8,14 @@ import type { YieldsService } from './yields';
 function createJobRunsStub() {
   return {
     runExclusiveJob: vi.fn(async () => ({ status: 'skipped' as const })),
-    getJobStatus: vi.fn(async () => 'running' as const),
+    getJobStatus: vi.fn(async () => 'idle' as const),
   } satisfies JobRunsService;
 }
 
-const yields = { backfillYields: vi.fn() } as unknown as YieldsService;
+const yields = { syncYields: vi.fn() } as unknown as YieldsService;
 
 describe('setup service', () => {
-  it('creates the balance and the deposit in one transaction, then starts the backfill', async () => {
+  it('creates the balance and the deposit in one transaction, then reports the started sync', async () => {
     const jobRuns = createJobRunsStub();
     const { db, sql } = createRecordingDb([
       [{ id: 1, amountCents: 0 }],
@@ -32,12 +32,12 @@ describe('setup service', () => {
     expect(sql().slice(0, 6)).toEqual([
       'begin',
       'insert into "balance" ("amount_cents") values ($1) on conflict ("id") do nothing returning *',
-      'select * from "balance" for update',
+      'select * from "balance" where "id" = $1 for update',
       'insert into "ledger_entries" ("reason", "amount_cents", "balance_after_cents") values ($1, $2, $3) returning *',
-      'update "balance" set "amount_cents" = $1, "updated_at" = now() returning *',
+      'update "balance" set "amount_cents" = $1, "updated_at" = now() where "id" = $2 returning *',
       'commit',
     ]);
-    expect(jobRuns.runExclusiveJob).toHaveBeenCalledWith('backfill-yields', yields.backfillYields);
+    expect(jobRuns.runExclusiveJob).toHaveBeenCalledWith('sync-yields', yields.syncYields);
     expect(status).toEqual({
       initialized: true,
       yields: { earliest: null, latest: null, rows: 0, backfill: 'running' },

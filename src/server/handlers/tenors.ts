@@ -24,6 +24,6 @@ function toTenorDto(tenor: Tenor) {
   return {
     code: tenor.code,
     months: Number(tenor.months),
-    kind: tenor.kind as 'bill' | 'note' | 'bond',
+    kind: tenor.kind,
   };
 }

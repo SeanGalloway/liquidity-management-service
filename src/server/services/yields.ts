@@ -7,14 +7,14 @@ import {
   findCurveObservations,
   findYieldCoverage,
   findYieldHistory,
-  insertYieldObservations,
+  upsertYieldObservations,
   type CurveObservation,
 } from '../db/yields';
 import { addDays, addMonths } from '../domain/dates';
 import { DomainError } from '../domain/errors';
 import type { Clock, DateRange, IsoDate } from '../domain/types';
 
-const BACKFILL_MONTHS = 12;
+const SYNC_LOOKBACK_MONTHS = 12;
 const HISTORY_DEFAULT_MONTHS = 6;
 
 export type CurvePointValue = { tenorCode: string; months: number; yieldBps: Decimal };
@@ -28,14 +28,12 @@ export type Curve = {
 
 export type YieldSeries = { tenorCode: string; points: { date: IsoDate; yieldBps: Decimal }[] };
 
-export type BackfillResult = {
+export type SyncResult = {
   fetched: number;
-  inserted: number;
+  stored: number;
   earliest: IsoDate | null;
   latest: IsoDate | null;
 };
-
-export type PollResult = { fetched: number; inserted: number; latestAsOf: IsoDate | null };
 
 type Dependencies = {
   db: Database;
@@ -44,43 +42,30 @@ type Dependencies = {
 };
 
 export function createYieldsService({ db, clock, yieldsClient }: Dependencies) {
-  async function backfillYields(): Promise<BackfillResult> {
+  async function syncYields(): Promise<SyncResult> {
     const today = clock.today();
+    const before = await findYieldCoverage(db);
 
-    const points = await yieldsClient.fetchParYieldCurve({
-      from: addMonths(today, -BACKFILL_MONTHS),
-      to: today,
-    });
-    const inserted = await insertYieldObservations(points, db);
-    const coverage = await findYieldCoverage(db);
+    const firstMissing = before.latest
+      ? addDays(before.latest, 1)
+      : addMonths(today, -SYNC_LOOKBACK_MONTHS);
+    if (firstMissing > today) return { fetched: 0, stored: 0, ...before };
 
-    return {
-      fetched: points.length,
-      inserted,
-      earliest: coverage.earliest,
-      latest: coverage.latest,
-    };
-  }
+    const refetchFrom = before.latest ?? firstMissing;
+    const points = await yieldsClient.fetchParYieldCurve({ from: refetchFrom, to: today });
+    const stored = await upsertYieldObservations(points, db);
+    const after = await findYieldCoverage(db);
 
-  async function pollLatestYields(): Promise<PollResult> {
-    const today = clock.today();
-    const coverage = await findYieldCoverage(db);
-
-    const from = coverage.latest ? addDays(coverage.latest, 1) : addMonths(today, -BACKFILL_MONTHS);
-    if (from > today) return { fetched: 0, inserted: 0, latestAsOf: coverage.latest };
-
-    const points = await yieldsClient.fetchParYieldCurve({ from, to: today });
-    const inserted = await insertYieldObservations(points, db);
-    const updated = await findYieldCoverage(db);
-
-    return { fetched: points.length, inserted, latestAsOf: updated.latest };
+    return { fetched: points.length, stored, earliest: after.earliest, latest: after.latest };
   }
 
   async function getCurve(date: IsoDate | 'latest'): Promise<Curve> {
-    const observations = await findCurveObservations(date === 'latest' ? clock.today() : date, db);
+    const onOrBefore = date === 'latest' ? clock.today() : date;
+    const observations = await findCurveObservations(onOrBefore, db);
 
     const first = observations[0];
-    if (!first) throw new DomainError('NO_MARKET_DATA', `No yield curve on or before ${date}`);
+    if (!first)
+      throw new DomainError('NO_MARKET_DATA', `No yield curve on or before ${onOrBefore}`);
 
     return {
       asOfDate: first.asOfDate,
@@ -99,6 +84,8 @@ export function createYieldsService({ db, clock, yieldsClient }: Dependencies) {
 
     const to = range.to ?? clock.today();
     const from = range.from ?? addMonths(to, -HISTORY_DEFAULT_MONTHS);
+    if (from > to) throw new DomainError('VALIDATION_FAILED', `from (${from}) is after to (${to})`);
+
     const observations = await findYieldHistory(tenorCodes, { from, to }, db);
 
     return groupIntoSeries(observations);
@@ -108,7 +95,7 @@ export function createYieldsService({ db, clock, yieldsClient }: Dependencies) {
     return findTenors(db);
   }
 
-  return { backfillYields, pollLatestYields, getCurve, listYieldHistory, listTenors };
+  return { syncYields, getCurve, listYieldHistory, listTenors };
 }
 
 export type YieldsService = ReturnType<typeof createYieldsService>;
@@ -122,6 +109,10 @@ function toCurvePointValue(observation: CurveObservation): CurvePointValue {
 }
 
 function rejectUnknownTenors(tenorCodes: string[], tenors: Tenor[]) {
+  if (tenorCodes.length === 0) {
+    throw new DomainError('VALIDATION_FAILED', 'At least one tenor code is required');
+  }
+
   const known = new Set(tenors.map((tenor) => tenor.code));
   const unknown = tenorCodes.filter((code) => !known.has(code));
 

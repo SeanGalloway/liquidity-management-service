@@ -1,12 +1,16 @@
 import 'server-only';
+import { withSessionAdvisoryLock } from '../db/advisory-lock';
 import type { Database } from '../db/client';
-import { findLatestJobRun, insertJobRun, markJobRunFinished } from '../db/job-runs';
+import {
+  findLatestJobRun,
+  insertJobRun,
+  markJobRunFinished,
+  markStaleJobRunsFailed,
+} from '../db/job-runs';
 import type { Json } from '../db/schema';
-import { withAdvisoryLock } from '../db/transaction';
 
 export const JOBS = {
-  backfillYields: 'backfill-yields',
-  pollYields: 'poll-yields',
+  syncYields: 'sync-yields',
   payCashflows: 'pay-cashflows',
 } as const;
 
@@ -25,12 +29,13 @@ export function createJobRunsService({ db }: { db: Database }) {
     job: string,
     work: () => Promise<T>,
   ): Promise<ExclusiveJobOutcome<T>> {
-    const locked = await withAdvisoryLock(db, job, () => runRecordedJob(job, work));
+    const locked = await withSessionAdvisoryLock(db, job, () => runRecordedJob(job, work));
 
     return locked.acquired ? { status: 'succeeded', result: locked.result } : { status: 'skipped' };
   }
 
   async function runRecordedJob<T extends Json>(job: string, work: () => Promise<T>) {
+    await markStaleJobRunsFailed(job, db);
     const run = await insertJobRun(job, db);
 
     try {
@@ -38,7 +43,9 @@ export function createJobRunsService({ db }: { db: Database }) {
       await markJobRunFinished(run.id, { status: 'succeeded', result }, db);
       return result;
     } catch (error) {
-      await markJobRunFinished(run.id, { status: 'failed', error: String(error) }, db);
+      await markJobRunFinished(run.id, { status: 'failed', error: describeError(error) }, db).catch(
+        (recordError) => console.error(`failed to record ${job} failure`, recordError),
+      );
       throw error;
     }
   }
@@ -52,3 +59,7 @@ export function createJobRunsService({ db }: { db: Database }) {
 }
 
 export type JobRunsService = ReturnType<typeof createJobRunsService>;
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+}

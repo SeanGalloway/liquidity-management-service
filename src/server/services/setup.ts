@@ -24,7 +24,7 @@ export function createSetupService({ db, balance, yields, jobRuns }: Dependencie
   async function getSetupStatus(): Promise<SetupStatus> {
     const existingBalance = await findBalance(db);
     const coverage = await findYieldCoverage(db);
-    const backfill = await jobRuns.getJobStatus(JOBS.backfillYields);
+    const backfill = await jobRuns.getJobStatus(JOBS.syncYields);
 
     return { initialized: Boolean(existingBalance), yields: { ...coverage, backfill } };
   }
@@ -34,17 +34,19 @@ export function createSetupService({ db, balance, yields, jobRuns }: Dependencie
       const created = await insertBalance(trx);
       if (!created) throw new DomainError('ALREADY_INITIALIZED', 'The desk is already set up');
 
-      await balance.postLedgerEntry(trx, { reason: 'deposit', amountCents: startingBalanceCents });
+      await balance.postLedgerEntry({ reason: 'deposit', amountCents: startingBalanceCents }, trx);
     });
 
-    startBackfill();
-    return getSetupStatus();
+    startYieldSync();
+
+    const status = await getSetupStatus();
+    return { ...status, yields: { ...status.yields, backfill: 'running' } };
   }
 
-  function startBackfill() {
+  function startYieldSync() {
     jobRuns
-      .runExclusiveJob(JOBS.backfillYields, yields.backfillYields)
-      .catch((error) => console.error('yield backfill failed', error));
+      .runExclusiveJob(JOBS.syncYields, yields.syncYields)
+      .catch((error) => console.error('yield sync after setup failed', error));
   }
 
   return { getSetupStatus, initializeDesk };

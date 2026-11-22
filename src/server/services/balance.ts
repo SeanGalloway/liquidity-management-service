@@ -14,8 +14,8 @@ export type CashMovement = {
 
 export function createBalanceService() {
   async function postLedgerEntry(
-    trx: Transaction<DB>,
     movement: CashMovement,
+    trx: Transaction<DB>,
   ): Promise<LedgerEntry> {
     const balance = await findBalanceForUpdate(trx);
     const balanceAfterCents = balance.amountCents + movement.amountCents;
