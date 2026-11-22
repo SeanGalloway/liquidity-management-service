@@ -27,3 +27,7 @@ export class DomainError extends Error {
     return ERROR_STATUS[this.code];
   }
 }
+
+export function notImplemented(feature: string): never {
+  throw new DomainError('NOT_IMPLEMENTED', `${feature} is not implemented yet`);
+}

@@ -44,6 +44,24 @@ describe('api app', () => {
     expect(await response.json()).toMatchObject({ error: { code: 'NOT_IMPLEMENTED' } });
   });
 
+  it('publishes an OpenAPI document covering every planned endpoint', async () => {
+    const response = await createTestApp().request('/api/v1/openapi.json');
+    const doc = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(Object.keys(doc.paths)).toHaveLength(18);
+    expect(doc.components.schemas).toHaveProperty('Order');
+  });
+
+  it('returns VALIDATION_FAILED for a face amount below $100', async () => {
+    const response = await createTestApp().request(
+      '/api/v1/quote?maturityDate=2027-03-18&faceCents=150',
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
+  });
+
   it('reports health with the latest yield date', async () => {
     const response = await createTestApp().request('/api/v1/health');
 
