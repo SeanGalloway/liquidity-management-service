@@ -3,7 +3,8 @@ import { createRoute } from '@hono/zod-openapi';
 import { Curve, CurveQuery, YieldHistory, YieldHistoryQuery } from '@shared/contracts';
 import type { Container } from '../container';
 import { createRouter, errorBody, jsonBody } from '../openapi';
-import type { Curve as CurveValue, YieldSeries } from '../services/yields';
+import type { Curve as CurveValue } from '../domain/types';
+import type { YieldSeries } from '../services/yields';
 
 const getCurve = createRoute({
   method: 'get',

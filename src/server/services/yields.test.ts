@@ -63,6 +63,17 @@ describe('yields service', () => {
     expect(result).toEqual({ fetched: 0, stored: 0, earliest: '2026-10-29', latest: '2026-11-22' });
   });
 
+  it('skips the fetch over a weekend when Friday is already stored', async () => {
+    const live = stubClient([]);
+    const { db } = createRecordingDb([[{ earliest: '2025-11-24', latest: '2026-11-20', rows: 3 }]]);
+
+    const service = createYieldsService({ db, clock, yieldsClient: live.client });
+    const result = await service.syncYields();
+
+    expect(live.fetchParYieldCurve).not.toHaveBeenCalled();
+    expect(result).toEqual({ fetched: 0, stored: 0, earliest: '2025-11-24', latest: '2026-11-20' });
+  });
+
   it('builds a curve from the stored observations', async () => {
     const { db } = createRecordingDb([
       [

@@ -22,7 +22,7 @@ export function createRoutes(container: Container) {
     .route('/cashflows', cashflowRoutes())
     .route('/timeline',  timelineRoutes())
     .route('/holdings',  holdingRoutes())
-    .route('/quote',     quoteRoutes())
+    .route('/quote',     quoteRoutes(container))
     .route('/orders',    orderRoutes())
     .route('/tenors',    tenorRoutes(container))
     .route('/yields',    yieldRoutes(container))

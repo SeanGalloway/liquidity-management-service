@@ -1,8 +1,9 @@
 import 'server-only';
 import { createRoute } from '@hono/zod-openapi';
 import { Quote, QuoteQuery } from '@shared/contracts';
-import { notImplemented } from '../domain/errors';
+import type { Container } from '../container';
 import { createRouter, errorBody, jsonBody } from '../openapi';
+import type { Quote as QuoteValue } from '../pricing/quote';
 
 const getQuote = createRoute({
   method: 'get',
@@ -17,6 +18,30 @@ const getQuote = createRoute({
   },
 });
 
-export function quoteRoutes() {
-  return createRouter().openapi(getQuote, () => notImplemented('GET /quote'));
+export function quoteRoutes({ quotes }: Container) {
+  return createRouter().openapi(getQuote, async (c) => {
+    const { maturityDate, faceCents } = c.req.valid('query');
+    const quote = await quotes.quoteOrder(maturityDate, faceCents);
+
+    return c.json(toQuoteDto(quote), 200);
+  });
+}
+
+function toQuoteDto(quote: QuoteValue) {
+  return {
+    kind: quote.security.kind,
+    maturityDate: quote.security.maturityDate,
+    days: quote.days,
+    yieldBps: quote.yieldBps.toNumber(),
+    interpolatedFrom: quote.interpolatedFrom,
+    couponRateBps: quote.security.couponRateBps?.toNumber() ?? null,
+    pricePer100: quote.pricePer100.toFixed(6),
+    cleanPriceCents: quote.cleanCents,
+    accruedCents: quote.accruedCents,
+    totalCents: quote.totalCents,
+    interestToMaturityCents: quote.interestToMaturityCents,
+    cashflows: quote.cashflows,
+    pricedAsOf: quote.pricedAsOf.toISOString(),
+    source: quote.source,
+  };
 }
