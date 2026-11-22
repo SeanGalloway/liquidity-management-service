@@ -2,7 +2,7 @@ import 'server-only';
 import { createRoute } from '@hono/zod-openapi';
 import { CashflowList, CashflowQuery } from '@shared/contracts';
 import type { ScheduledCashflow } from '../db/cashflows';
-import { notImplemented } from '../domain/errors';
+import type { Container } from '../container';
 import { createRouter, errorBody, jsonBody } from '../openapi';
 
 const listCashflows = createRoute({
@@ -17,8 +17,13 @@ const listCashflows = createRoute({
   },
 });
 
-export function cashflowRoutes() {
-  return createRouter().openapi(listCashflows, () => notImplemented('GET /cashflows'));
+export function cashflowRoutes({ cashflows }: Container) {
+  return createRouter().openapi(listCashflows, async (c) => {
+    const { status, from, to } = c.req.valid('query');
+    const rows = await cashflows.listCashflows({ status, range: { from, to } });
+
+    return c.json({ data: rows.map(toCashflowDto) }, 200);
+  });
 }
 
 export function toCashflowDto(cashflow: ScheduledCashflow) {

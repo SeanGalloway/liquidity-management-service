@@ -396,6 +396,12 @@ close, and `/timeline` returns actual + projected series.
 22. `createBalanceService` now takes `{ db }` (reads added). History ranges are New York calendar days,
     inclusive of `to`, converted to instants in the service.
 23. `toCashflowDto` lives in `handlers/cashflows.ts` and is reused by the holding detail.
+24. `markCashflowPaid` / `markHoldingMatured` stamp `now()` in SQL (no `paidAt` parameter).
+    Timeline treats overdue scheduled cashflows (job not yet run) as landing today.
+25. With every endpoint live, the `notImplemented` helper and `NOT_IMPLEMENTED` code were removed.
+26. Verified payment end to end by running `payDueCashflows` with a fake clock against a throwaway
+    copy of the dev database: re-running a day pays nothing, principal closes the holding, and the
+    final balance equals both the ledger sum and the earlier `/timeline` projection.
 
 ## Changes from PR review (Vertical 1)
 

@@ -23,14 +23,14 @@ describe('api app', () => {
     expect(await response.json()).toMatchObject({ error: { code: 'UNAUTHORIZED' } });
   });
 
-  it('accepts job calls with the job token', async () => {
-    const response = await createTestApp().request('/api/v1/jobs/pay-cashflows', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${TEST_JOB_TOKEN}` },
-    });
+  it('reports a skipped job when another run holds its lock', async () => {
+    const response = await createTestApp([[{ acquired: false }]]).request(
+      '/api/v1/jobs/pay-cashflows',
+      { method: 'POST', headers: { authorization: `Bearer ${TEST_JOB_TOKEN}` } },
+    );
 
-    expect(response.status).toBe(501);
-    expect(await response.json()).toMatchObject({ error: { code: 'NOT_IMPLEMENTED' } });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ skipped: true });
   });
 
   it('requires setup before order endpoints, including the bare collection path', async () => {

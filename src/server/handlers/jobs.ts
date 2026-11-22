@@ -8,7 +8,6 @@ import {
   SyncYieldsResult,
 } from '@shared/contracts';
 import type { Container } from '../container';
-import { notImplemented } from '../domain/errors';
 import { createRouter, errorBody, jsonBody } from '../openapi';
 import { JOBS, type ExclusiveJobOutcome } from '../services/job-runs';
 
@@ -42,7 +41,7 @@ const payCashflows = jobRoute(
   z.union([PayCashflowsResult, SkippedJob]),
 );
 
-export function jobRoutes({ jobRuns, yields, orders }: Container) {
+export function jobRoutes({ jobRuns, yields, orders, cashflows }: Container) {
   return createRouter()
     .openapi(fillOrders, async (c) => {
       return c.json(await orders.fillDueOrders(), 200);
@@ -51,7 +50,10 @@ export function jobRoutes({ jobRuns, yields, orders }: Container) {
       const outcome = await jobRuns.runExclusiveJob(JOBS.syncYields, yields.syncYields);
       return c.json(toJobResponse(outcome), 200);
     })
-    .openapi(payCashflows, () => notImplemented('Job pay-cashflows'));
+    .openapi(payCashflows, async (c) => {
+      const outcome = await jobRuns.runExclusiveJob(JOBS.payCashflows, cashflows.payDueCashflows);
+      return c.json(toJobResponse(outcome), 200);
+    });
 }
 
 function toJobResponse<T>(outcome: ExclusiveJobOutcome<T>) {

@@ -5,6 +5,7 @@ import { getDatabase, type Database } from './db/client';
 import { createSystemClock } from './domain/dates';
 import type { Clock } from './domain/types';
 import { createBalanceService, type BalanceService } from './services/balance';
+import { createCashflowsService, type CashflowsService } from './services/cashflows';
 import { createExecuteOrder } from './services/execute-order';
 import { createHoldingsService, type HoldingsService } from './services/holdings';
 import { createJobRunsService, type JobRunsService } from './services/job-runs';
@@ -12,6 +13,7 @@ import { createOrdersService, type OrdersService } from './services/orders';
 import { createQuotesService, type QuotesService } from './services/quotes';
 import { createSecurityResolver } from './services/security-resolver';
 import { createSetupService, type SetupService } from './services/setup';
+import { createTimelineService, type TimelineService } from './services/timeline';
 import { createYieldsService, type YieldsService } from './services/yields';
 
 export type Container = {
@@ -25,6 +27,8 @@ export type Container = {
   quotes: QuotesService;
   orders: OrdersService;
   holdings: HoldingsService;
+  cashflows: CashflowsService;
+  timeline: TimelineService;
 };
 
 export function createContainer(): Container {
@@ -44,6 +48,21 @@ export function createContainer(): Container {
   const orders = createOrdersService({ db, clock, quotes, executeOrder, balance });
 
   const holdings = createHoldingsService({ db });
+  const cashflows = createCashflowsService({ db, clock, balance });
+  const timeline = createTimelineService({ db, clock });
 
-  return { config, db, clock, jobRuns, balance, yields, setup, quotes, orders, holdings };
+  return {
+    config,
+    db,
+    clock,
+    jobRuns,
+    balance,
+    yields,
+    setup,
+    quotes,
+    orders,
+    holdings,
+    cashflows,
+    timeline,
+  };
 }
