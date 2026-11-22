@@ -391,6 +391,11 @@ close, and `/timeline` returns actual + projected series.
 20. `executeOrder` maps `NO_MARKET_DATA` → rejection `NO_MARKET_DATA` and a maturity that became
     invalid while pending → `MATURITY_NO_LONGER_VALID`; any other error propagates so the fill
     transaction rolls back and the order is marked `failed`.
+21. `HoldingWithSecurity` is a **flat** composite (`Holding & SecurityTerms & { cashflowTotalCents }`):
+    one join plus a scalar subquery, no JSON nesting in SQL. The handler nests `security` for the contract.
+22. `createBalanceService` now takes `{ db }` (reads added). History ranges are New York calendar days,
+    inclusive of `to`, converted to instants in the service.
+23. `toCashflowDto` lives in `handlers/cashflows.ts` and is reused by the holding detail.
 
 ## Changes from PR review (Vertical 1)
 

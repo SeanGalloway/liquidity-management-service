@@ -6,6 +6,7 @@ import { createSystemClock } from './domain/dates';
 import type { Clock } from './domain/types';
 import { createBalanceService, type BalanceService } from './services/balance';
 import { createExecuteOrder } from './services/execute-order';
+import { createHoldingsService, type HoldingsService } from './services/holdings';
 import { createJobRunsService, type JobRunsService } from './services/job-runs';
 import { createOrdersService, type OrdersService } from './services/orders';
 import { createQuotesService, type QuotesService } from './services/quotes';
@@ -23,6 +24,7 @@ export type Container = {
   setup: SetupService;
   quotes: QuotesService;
   orders: OrdersService;
+  holdings: HoldingsService;
 };
 
 export function createContainer(): Container {
@@ -33,7 +35,7 @@ export function createContainer(): Container {
   const yieldsClient = createTreasuryGovClient({ baseUrl: config.treasuryBaseUrl });
 
   const jobRuns = createJobRunsService({ db });
-  const balance = createBalanceService();
+  const balance = createBalanceService({ db });
   const yields = createYieldsService({ db, clock, yieldsClient });
   const setup = createSetupService({ db, balance, yields, jobRuns });
   const securityResolver = createSecurityResolver();
@@ -41,5 +43,7 @@ export function createContainer(): Container {
   const executeOrder = createExecuteOrder({ quotes, clock });
   const orders = createOrdersService({ db, clock, quotes, executeOrder, balance });
 
-  return { config, db, clock, jobRuns, balance, yields, setup, quotes, orders };
+  const holdings = createHoldingsService({ db });
+
+  return { config, db, clock, jobRuns, balance, yields, setup, quotes, orders, holdings };
 }

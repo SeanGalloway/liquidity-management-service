@@ -1,7 +1,9 @@
 import 'server-only';
 import { createRoute } from '@hono/zod-openapi';
 import { Balance, DateRangeQuery, LedgerEntryList } from '@shared/contracts';
-import { notImplemented } from '../domain/errors';
+import type { Container } from '../container';
+import type { LedgerEntry } from '../db/ledger';
+import type { BalanceSummary } from '../services/balance';
 import { createRouter, errorBody, jsonBody } from '../openapi';
 
 const getBalance = createRoute({
@@ -24,8 +26,39 @@ const getBalanceHistory = createRoute({
   },
 });
 
-export function balanceRoutes() {
+export function balanceRoutes({ balance }: Container) {
   return createRouter()
-    .openapi(getBalance, () => notImplemented('GET /balance'))
-    .openapi(getBalanceHistory, () => notImplemented('GET /balance/history'));
+    .openapi(getBalance, async (c) => {
+      const summary = await balance.getBalance();
+      return c.json(toBalanceDto(summary), 200);
+    })
+    .openapi(getBalanceHistory, async (c) => {
+      const entries = await balance.listBalanceHistory(c.req.valid('query'));
+      return c.json({ data: entries.map(toLedgerEntryDto) }, 200);
+    });
+}
+
+function toBalanceDto({ balance, pendingOrders }: BalanceSummary) {
+  return {
+    amountCents: balance.amountCents,
+    updatedAt: balance.updatedAt.toISOString(),
+    pendingOrders,
+  };
+}
+
+function toLedgerEntryDto(entry: LedgerEntry) {
+  return {
+    id: entry.id,
+    occurredAt: entry.occurredAt.toISOString(),
+    amountCents: entry.amountCents,
+    balanceAfterCents: entry.balanceAfterCents,
+    reason: entry.reason as 'deposit' | 'buy' | 'coupon' | 'principal',
+    ref: toLedgerRef(entry),
+  };
+}
+
+function toLedgerRef(entry: LedgerEntry) {
+  if (entry.orderId) return { type: 'order' as const, id: entry.orderId };
+  if (entry.cashflowId) return { type: 'cashflow' as const, id: entry.cashflowId };
+  return null;
 }

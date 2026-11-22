@@ -121,3 +121,16 @@ function selectOrdersWithHolding(ex: Executor) {
     .select('holdings.id as holdingId')
     .$narrowType<{ status: OrderStatus }>();
 }
+
+export type PendingOrderTotals = { count: number; faceCents: number };
+
+export function findPendingOrderTotals(ex: Executor): Promise<PendingOrderTotals> {
+  return ex
+    .selectFrom('orders')
+    .select((eb) => [
+      eb.fn.countAll<number>().as('count'),
+      sql<number>`coalesce(sum(face_cents), 0)::bigint`.as('faceCents'),
+    ])
+    .where('status', '=', 'pending')
+    .executeTakeFirstOrThrow();
+}

@@ -3,6 +3,7 @@ import type { Container } from '@server/container';
 import type { Database } from '@server/db/client';
 import { createBalanceService } from '@server/services/balance';
 import { createExecuteOrder } from '@server/services/execute-order';
+import { createHoldingsService } from '@server/services/holdings';
 import { createJobRunsService } from '@server/services/job-runs';
 import { createOrdersService } from '@server/services/orders';
 import { createQuotesService } from '@server/services/quotes';
@@ -18,7 +19,7 @@ export const emptyYieldsClient: YieldsClient = { fetchParYieldCurve: async () =>
 export function createTestContainer(db: Database): Container {
   const clock = createFakeClock('2026-11-22T17:00:00Z');
   const jobRuns = createJobRunsService({ db });
-  const balance = createBalanceService();
+  const balance = createBalanceService({ db });
   const yields = createYieldsService({
     db,
     clock,
@@ -47,5 +48,6 @@ export function createTestContainer(db: Database): Container {
       executeOrder: createExecuteOrder({ quotes, clock }),
       balance,
     }),
+    holdings: createHoldingsService({ db }),
   };
 }

@@ -21,7 +21,7 @@ function createService(scripted: Scripted, executeOrder?: ExecuteOrder) {
     clock,
     quotes,
     executeOrder: executeOrder ?? createExecuteOrder({ quotes, clock }),
-    balance: createBalanceService(),
+    balance: createBalanceService({ db: recording.db }),
   });
 
   return { service, ...recording };

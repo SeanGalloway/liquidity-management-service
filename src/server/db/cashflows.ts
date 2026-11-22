@@ -12,3 +12,16 @@ export function insertScheduledCashflows(
 ): Promise<ScheduledCashflow[]> {
   return ex.insertInto('scheduledCashflows').values(cashflows).returningAll().execute();
 }
+
+export function findCashflowsForHolding(
+  holdingId: string,
+  ex: Executor,
+): Promise<ScheduledCashflow[]> {
+  return ex
+    .selectFrom('scheduledCashflows')
+    .selectAll()
+    .where('holdingId', '=', holdingId)
+    .orderBy('payDate')
+    .orderBy('kind')
+    .execute();
+}
