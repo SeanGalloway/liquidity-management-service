@@ -2,7 +2,9 @@ import type { YieldsClient } from '@server/clients/yields-client';
 import type { Container } from '@server/container';
 import type { Database } from '@server/db/client';
 import { createBalanceService } from '@server/services/balance';
+import { createExecuteOrder } from '@server/services/execute-order';
 import { createJobRunsService } from '@server/services/job-runs';
+import { createOrdersService } from '@server/services/orders';
 import { createQuotesService } from '@server/services/quotes';
 import { createSecurityResolver } from '@server/services/security-resolver';
 import { createSetupService } from '@server/services/setup';
@@ -38,5 +40,12 @@ export function createTestContainer(db: Database): Container {
     yields,
     setup,
     quotes,
+    orders: createOrdersService({
+      db,
+      clock,
+      quotes,
+      executeOrder: createExecuteOrder({ quotes, clock }),
+      balance,
+    }),
   };
 }

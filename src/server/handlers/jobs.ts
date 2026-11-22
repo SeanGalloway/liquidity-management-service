@@ -38,9 +38,11 @@ const payCashflows = jobRoute(
   PayCashflowsResult,
 );
 
-export function jobRoutes({ jobRuns, yields }: Container) {
+export function jobRoutes({ jobRuns, yields, orders }: Container) {
   return createRouter()
-    .openapi(fillOrders, () => notImplemented('Job fill-orders'))
+    .openapi(fillOrders, async (c) => {
+      return c.json(await orders.fillDueOrders(), 200);
+    })
     .openapi(syncYields, async (c) => {
       const outcome = await jobRuns.runExclusiveJob(JOBS.syncYields, yields.syncYields);
       return c.json(toJobResponse(outcome), 200);

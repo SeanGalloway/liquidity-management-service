@@ -382,6 +382,15 @@ close, and `/timeline` returns actual + projected series.
     No `pricing/day-count.ts`: act/act accrual is one line inside `coupon.ts`.
 16. `syncYields` skips the Treasury request when no business day has passed since the latest
     stored close.
+17. Order reads return the composite `OrderWithHolding` (`Order & { holdingId }`, one left join),
+    reused by `findOrder`, `findOrderByIdempotencyKey` and `findOrders`, because the order→holding
+    link lives on `holdings.order_id`. Writes return plain `Order`.
+18. `findPendingOrderTotals` moves to Vertical 4, its only consumer.
+19. `require-setup` is mounted in `app.ts` on `/balance/*`, `/cashflows/*`, `/timeline/*`,
+    `/holdings/*` and `/orders/*` (Hono's `/x/*` also matches the bare `/x`). `/quote` stays open.
+20. `executeOrder` maps `NO_MARKET_DATA` → rejection `NO_MARKET_DATA` and a maturity that became
+    invalid while pending → `MATURITY_NO_LONGER_VALID`; any other error propagates so the fill
+    transaction rolls back and the order is marked `failed`.
 
 ## Changes from PR review (Vertical 1)
 

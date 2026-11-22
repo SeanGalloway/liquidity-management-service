@@ -8,7 +8,8 @@ import {
   OrderList,
   OrdersQuery,
 } from '@shared/contracts';
-import { notImplemented } from '../domain/errors';
+import type { Container } from '../container';
+import type { OrderWithHolding } from '../db/orders';
 import { createRouter, errorBody, jsonBody } from '../openapi';
 
 const createOrder = createRoute({
@@ -47,9 +48,59 @@ const getOrder = createRoute({
   responses: { 200: jsonBody(Order, 'Order'), 404: errorBody('NOT_FOUND') },
 });
 
-export function orderRoutes() {
+export function orderRoutes({ orders }: Container) {
   return createRouter()
-    .openapi(createOrder, () => notImplemented('POST /orders'))
-    .openapi(listOrders, () => notImplemented('GET /orders'))
-    .openapi(getOrder, () => notImplemented('GET /orders/{id}'));
+    .openapi(createOrder, async (c) => {
+      const idempotencyKey = c.req.valid('header')['idempotency-key'];
+      const { order, replayed } = await orders.submitOrder(idempotencyKey, c.req.valid('json'));
+
+      return replayed ? c.json(toOrderDto(order), 200) : c.json(toOrderDto(order), 202);
+    })
+    .openapi(listOrders, async (c) => {
+      const page = await orders.listOrders(c.req.valid('query'));
+      return c.json({ data: page.orders.map(toOrderDto), nextCursor: page.nextCursor }, 200);
+    })
+    .openapi(getOrder, async (c) => {
+      const order = await orders.getOrder(c.req.valid('param').id);
+      return c.json(toOrderDto(order), 200);
+    });
+}
+
+function toOrderDto(order: OrderWithHolding) {
+  return {
+    id: order.id,
+    side: 'buy' as const,
+    status: order.status as 'pending' | 'executed' | 'rejected' | 'failed',
+    maturityDate: order.maturityDate,
+    faceCents: order.faceCents,
+    quote: {
+      yieldBps: Number(order.quotedYieldBps),
+      totalCents: order.quotedTotalCents,
+      pricedAsOf: order.quotedAsOf.toISOString(),
+    },
+    fill: toFillDto(order),
+    rejectReason: order.rejectReason,
+    createdAt: order.createdAt.toISOString(),
+  };
+}
+
+function toFillDto(order: OrderWithHolding) {
+  const { executedAt, executedYieldBps, executedTotalCents, pricedAsOf, holdingId } = order;
+  if (
+    !executedAt ||
+    !executedYieldBps ||
+    executedTotalCents === null ||
+    !pricedAsOf ||
+    !holdingId
+  ) {
+    return null;
+  }
+
+  return {
+    executedAt: executedAt.toISOString(),
+    yieldBps: Number(executedYieldBps),
+    totalCents: executedTotalCents,
+    pricedAsOf: pricedAsOf.toISOString(),
+    holdingId,
+  };
 }
