@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: liquidity
+      POSTGRES_PASSWORD: liquidity
+      POSTGRES_DB: liquidity
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U liquidity -d liquidity']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  app:
+    profiles: ['full']
+    build:
+      context: .
+      target: app
+    environment:
+      DATABASE_URL: postgres://liquidity:liquidity@postgres:5432/liquidity
+      JOB_TOKEN: ${JOB_TOKEN:-change-me-local-job-token}
+      TREASURY_BASE_URL: https://home.treasury.gov
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    profiles: ['full']
+    build:
+      context: .
+      target: worker
+    environment:
+      APP_URL: http://app:3000
+      JOB_TOKEN: ${JOB_TOKEN:-change-me-local-job-token}
+    depends_on:
+      - app
+
+volumes:
+  pgdata:

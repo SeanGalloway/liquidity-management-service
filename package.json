@@ -1,0 +1,51 @@
+{
+  "name": "liquidity-management-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "worker": "tsx --env-file-if-exists=.env worker/index.ts",
+    "db:up": "docker compose up -d postgres",
+    "db:migrate": "tsx --env-file-if-exists=.env db/migrate.ts latest",
+    "db:rollback": "tsx --env-file-if-exists=.env db/migrate.ts down",
+    "db:codegen": "kysely-codegen --env-file .env --dialect postgres --camel-case --date-parser string --numeric-parser string --type-mapping '{\"int8\":\"number\"}' --exclude-pattern 'kysely_*' --out-file src/server/db/schema.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.9.1",
+    "@tanstack/react-query": "^5.108.2",
+    "client-only": "^0.0.1",
+    "decimal.js": "^10.6.0",
+    "hono": "^4.13.19",
+    "kysely": "^0.29.9",
+    "next": "^16.4.6",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "recharts": "^3.11.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.6",
+    "kysely-codegen": "^0.20.0",
+    "prettier": "^3.10.1",
+    "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.1"
+  }
+}
