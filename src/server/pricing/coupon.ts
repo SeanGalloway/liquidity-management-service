@@ -17,7 +17,9 @@ type CouponPriceInput = {
   settleDate: IsoDate;
 };
 
-// Street-convention price for semiannual coupons with act/act accrual (31 CFR Part 356 Appendix B, Section I).
+// Secondary-market (SIFMA street convention) price: semiannual compounding including the fractional
+// first period, act/act accrued. Treasury's auction formula (31 CFR 356 App. B) instead uses simple
+// interest for that period.
 export function calculateCouponPrice({
   couponRateBps,
   yieldBps,
@@ -35,13 +37,12 @@ export function calculateCouponPrice({
     periodDays,
   );
 
-  let dirtyPer100 = new Decimal(0);
-  schedule.couponDates.forEach((_, index) => {
-    dirtyPer100 = dirtyPer100.plus(couponPer100.div(periodYield.pow(fractionToNext.plus(index))));
-  });
+  const periods = schedule.couponDates.length;
+  let dirtyPer100 = new Decimal(100).div(periodYield.pow(fractionToNext.plus(periods - 1)));
 
-  const lastPeriod = fractionToNext.plus(schedule.couponDates.length - 1);
-  dirtyPer100 = dirtyPer100.plus(new Decimal(100).div(periodYield.pow(lastPeriod)));
+  for (let period = 0; period < periods; period++) {
+    dirtyPer100 = dirtyPer100.plus(couponPer100.div(periodYield.pow(fractionToNext.plus(period))));
+  }
 
   const accruedPer100 = couponPer100.times(new Decimal(1).minus(fractionToNext));
 

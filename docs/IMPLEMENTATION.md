@@ -417,3 +417,6 @@ close, and `/timeline` returns actual + projected series.
   weekday test); reusing the resolver's yield in the quote (a real off-par security's yield ≠ coupon);
   dating synthetic notes at settlement (seasoned-security model is intentional).
 - Round 2 declined: a separate SIFMA bond-market calendar (Good Friday) — recorded in Future work.
+- Round 3: coupon pricer's citation corrected — it is SIFMA street convention (secondary market),
+  not Treasury's auction formula (App. B, simple-interest first period); accrued per 100 rounded to six
+  decimals before cents, like the clean price; `Quote.settleDate` exposed.

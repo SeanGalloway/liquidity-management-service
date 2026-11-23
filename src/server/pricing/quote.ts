@@ -55,7 +55,8 @@ export function calculateQuote({ security, curve, faceCents, settleDate }: Quote
 
   const pricePer100 = priced.cleanPer100.toDecimalPlaces(PRICE_DECIMALS, Decimal.ROUND_HALF_UP);
   const cleanCents = toCents(pricePer100, faceCents);
-  const accruedCents = toCents(priced.accruedPer100, faceCents);
+  const accruedPer100 = priced.accruedPer100.toDecimalPlaces(PRICE_DECIMALS, Decimal.ROUND_HALF_UP);
+  const accruedCents = toCents(accruedPer100, faceCents);
   const totalCents = cleanCents + accruedCents;
   const cashflowTotal = priced.cashflows.reduce((sum, cashflow) => sum + cashflow.amountCents, 0);
 

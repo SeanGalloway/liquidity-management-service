@@ -59,6 +59,14 @@ describe('quoteOrder', () => {
     expect(quote.accruedCents).toBe(2_013_499);
   });
 
+  it('charges accrued cents from the six-decimal accrued per 100 on a large face', async () => {
+    const { service } = createService();
+
+    const quote = await service.quoteOrder('2028-06-15', 10_000_000_000);
+
+    expect(quote.accruedCents).toBe(201_349_900);
+  });
+
   it('charges cents from the published six-decimal price', async () => {
     const { service } = createService();
 

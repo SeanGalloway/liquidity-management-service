@@ -168,6 +168,7 @@ export const QuoteQuery = z.object({
 export const Quote = z
   .object({
     kind: SecurityKind,
+    settleDate: IsoDate.meta({ description: 'Next business day; days and accrued run from here' }),
     maturityDate: IsoDate.meta({
       description:
         'Nominal maturity (bills are business-day adjusted); see cashflows for payment dates',

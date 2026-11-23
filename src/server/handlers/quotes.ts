@@ -30,6 +30,7 @@ export function quoteRoutes({ quotes }: Container) {
 function toQuoteDto(quote: QuoteValue) {
   return {
     kind: quote.security.kind,
+    settleDate: quote.settleDate,
     maturityDate: quote.security.maturityDate,
     days: quote.days,
     yieldBps: quote.yieldBps.toNumber(),
