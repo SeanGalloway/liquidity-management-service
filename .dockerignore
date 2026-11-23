@@ -1,4 +1,11 @@
-node_modules
-.next
 .git
+.claude
+.next
+node_modules
+dist
+coverage
+docs
 .env
+.env.*
+*.tsbuildinfo
+*.md
