@@ -57,13 +57,18 @@ describe('runExclusiveJob', () => {
 
   it('keeps the original error when recording the failure also fails', async () => {
     const { db } = createRecordingDb([[{ acquired: true }], [], [{ id: 'run-1' }]]);
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const attempt = createJobRunsService({ db }).runExclusiveJob('sync-yields', async () => {
       throw new Error('treasury down');
     });
 
     await expect(attempt).rejects.toThrow('treasury down');
+    expect(consoleError).toHaveBeenCalledWith(
+      'failed to record sync-yields failure',
+      expect.anything(),
+    );
+    consoleError.mockRestore();
   });
 
   it('maps the latest run to a job status', async () => {

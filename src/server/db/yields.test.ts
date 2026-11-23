@@ -60,7 +60,7 @@ describe('yields repository', () => {
     await findCurveObservations('2026-11-22', db);
 
     expect(queries[0]?.sql).toBe(
-      'select "yields".*, "tenors"."code" as "tenor_code", "tenors"."months", "tenors"."kind" from "yields" ' +
+      'select "yields".*, "tenors"."code" as "tenor_code", "tenors"."months" from "yields" ' +
         'inner join "tenors" on "tenors"."id" = "yields"."tenor_id" ' +
         'where "yields"."as_of_date" = (select max("as_of_date") as "latest" from "yields" where "as_of_date" <= $1) ' +
         'order by "tenors"."months"',

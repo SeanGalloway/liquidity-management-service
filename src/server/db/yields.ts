@@ -7,11 +7,7 @@ import type { Yields } from './schema';
 
 export type YieldObservation = Selectable<Yields>;
 
-export type CurveObservation = YieldObservation & {
-  tenorCode: string;
-  months: string;
-  kind: string;
-};
+export type CurveObservation = YieldObservation & { tenorCode: string; months: string };
 
 export type YieldCoverage = {
   earliest: IsoDate | null;
@@ -64,7 +60,7 @@ export function findCurveObservations(
     .selectFrom('yields')
     .innerJoin('tenors', 'tenors.id', 'yields.tenorId')
     .selectAll('yields')
-    .select(['tenors.code as tenorCode', 'tenors.months', 'tenors.kind'])
+    .select(['tenors.code as tenorCode', 'tenors.months'])
     .where('yields.asOfDate', '=', (eb) =>
       eb
         .selectFrom('yields')
@@ -84,7 +80,7 @@ export function findYieldHistory(
     .selectFrom('yields')
     .innerJoin('tenors', 'tenors.id', 'yields.tenorId')
     .selectAll('yields')
-    .select(['tenors.code as tenorCode', 'tenors.months', 'tenors.kind'])
+    .select(['tenors.code as tenorCode', 'tenors.months'])
     .where('tenors.code', 'in', tenorCodes)
     .where('yields.asOfDate', '>=', range.from)
     .where('yields.asOfDate', '<=', range.to)

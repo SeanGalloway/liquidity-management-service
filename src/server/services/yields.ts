@@ -64,8 +64,9 @@ export function createYieldsService({ db, clock, yieldsClient }: Dependencies) {
     const observations = await findCurveObservations(onOrBefore, db);
 
     const first = observations[0];
-    if (!first)
+    if (!first) {
       throw new DomainError('NO_MARKET_DATA', `No yield curve on or before ${onOrBefore}`);
+    }
 
     return {
       asOfDate: first.asOfDate,
@@ -79,6 +80,10 @@ export function createYieldsService({ db, clock, yieldsClient }: Dependencies) {
     tenorCodes: string[],
     range: Partial<DateRange>,
   ): Promise<YieldSeries[]> {
+    if (tenorCodes.length === 0) {
+      throw new DomainError('VALIDATION_FAILED', 'At least one tenor code is required');
+    }
+
     const tenors = await findTenors(db);
     rejectUnknownTenors(tenorCodes, tenors);
 
@@ -113,10 +118,6 @@ function toCurvePointValue(observation: CurveObservation): CurvePointValue {
 }
 
 function rejectUnknownTenors(tenorCodes: string[], tenors: Tenor[]) {
-  if (tenorCodes.length === 0) {
-    throw new DomainError('VALIDATION_FAILED', 'At least one tenor code is required');
-  }
-
   const known = new Set(tenors.map((tenor) => tenor.code));
   const unknown = tenorCodes.filter((code) => !known.has(code));
 

@@ -2,7 +2,7 @@ import 'server-only';
 import Decimal from 'decimal.js';
 import { toNewYorkInstant, yearOf } from '../domain/dates';
 import type { DateRange } from '../domain/types';
-import { isInRange, type CurvePoint, type YieldsClient } from './yields-client';
+import type { CurvePoint, YieldsClient } from './yields-client';
 
 export const TREASURY_SOURCE = 'treasury.gov';
 
@@ -39,12 +39,12 @@ export function createTreasuryGovClient({ baseUrl }: { baseUrl: string }): Yield
         points.push(...parseParYieldCsv(csv));
       }
 
-      return points.filter((point) => isInRange(point, range));
+      return points.filter((point) => point.asOfDate >= range.from && point.asOfDate <= range.to);
     },
   };
 }
 
-export async function fetchParYieldCsv(baseUrl: string, year: number): Promise<string> {
+async function fetchParYieldCsv(baseUrl: string, year: number): Promise<string> {
   const url = new URL(`${CSV_PATH}/${year}/all`, baseUrl);
   url.searchParams.set('type', 'daily_treasury_yield_curve');
   url.searchParams.set('field_tdr_date_value', String(year));
