@@ -10,9 +10,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <TicketProvider>
         <div className="min-h-screen">
           <AppHeader />
-          <div className="mx-auto flex max-w-[1376px] flex-wrap items-start gap-6 px-4 pt-7 pb-12 sm:px-8">
-            <main className="flex min-w-0 flex-[999_1_640px] flex-col gap-6">{children}</main>
-            <div className="w-full max-w-[420px] flex-[1_1_340px] max-lg:max-w-none lg:sticky lg:top-6">
+          <div className="mx-auto flex max-w-[1376px] flex-col gap-6 px-4 pt-7 pb-12 sm:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] lg:items-start">
+            <main className="flex min-w-0 flex-col gap-6">{children}</main>
+            <div className="lg:sticky lg:top-6">
               <OrderTicket />
             </div>
           </div>

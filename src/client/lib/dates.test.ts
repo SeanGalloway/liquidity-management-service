@@ -41,9 +41,10 @@ describe('day arithmetic', () => {
 });
 
 describe('calculateEarliestMaturity', () => {
-  it('is two days out, rolled past a weekend', () => {
+  it('is the second business day after today', () => {
     expect(calculateEarliestMaturity('2026-11-23')).toBe('2026-11-25');
-    expect(calculateEarliestMaturity('2026-11-20')).toBe('2026-11-23');
-    expect(calculateEarliestMaturity('2026-11-19')).toBe('2026-11-23');
+    expect(calculateEarliestMaturity('2026-11-20')).toBe('2026-11-24');
+    expect(calculateEarliestMaturity('2026-11-21')).toBe('2026-11-24');
+    expect(calculateEarliestMaturity('2026-11-22')).toBe('2026-11-24');
   });
 });

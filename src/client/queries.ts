@@ -1,5 +1,5 @@
 import 'client-only';
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -120,19 +120,6 @@ export function usePlaceOrder() {
   });
 }
 
-export function useRefreshPortfolio() {
-  const queryClient = useQueryClient();
-  return useCallback(
-    () =>
-      Promise.all(
-        [queryKeys.balance, queryKeys.holdings, queryKeys.orders, queryKeys.timelines].map(
-          (queryKey) => queryClient.invalidateQueries({ queryKey }),
-        ),
-      ),
-    [queryClient],
-  );
-}
-
 export function useQuote(request: CreateOrderRequest | null) {
   return useQuery({
     queryKey: request ? queryKeys.quote(request) : ['quote', 'none'],
@@ -164,14 +151,19 @@ export function useYieldHistory(tenors: string[], from: string) {
   });
 }
 
-export function useRefreshWhenPendingClears() {
-  const pendingCount = useBalance().data?.pendingOrders.count;
-  const refreshPortfolio = useRefreshPortfolio();
-  const previous = useRef(pendingCount);
+export function useRefreshPortfolioOnBalanceChange() {
+  const queryClient = useQueryClient();
+  const balance = useBalance().data;
+  const signature = balance ? `${balance.updatedAt}|${balance.pendingOrders.count}` : null;
+  const previous = useRef(signature);
 
   useEffect(() => {
-    const dropped = (previous.current ?? 0) > (pendingCount ?? 0);
-    previous.current = pendingCount;
-    if (dropped) void refreshPortfolio();
-  }, [pendingCount, refreshPortfolio]);
+    const changed = previous.current !== null && signature !== previous.current;
+    previous.current = signature;
+    if (!changed) return;
+
+    for (const queryKey of [queryKeys.holdings, queryKeys.orders, queryKeys.timelines]) {
+      void queryClient.invalidateQueries({ queryKey });
+    }
+  }, [signature, queryClient]);
 }

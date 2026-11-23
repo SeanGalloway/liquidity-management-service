@@ -1,7 +1,7 @@
 'use client';
 
 import 'client-only';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ApiError } from '@client/api';
 import { Button } from '@client/components/ui/button';
 import { formatDollarInput, formatInstantDate, parseDollarInput } from '@client/lib/format';
@@ -11,7 +11,7 @@ import {
   useOrder,
   usePlaceOrder,
   useQuote,
-  useRefreshWhenPendingClears,
+  useRefreshPortfolioOnBalanceChange,
 } from '@client/queries';
 import type { CreateOrderRequest, Quote } from '@client/types';
 import { AmountField } from './amount-field';
@@ -42,18 +42,6 @@ function useDebouncedOrderRequest(request: CreateOrderRequest | null) {
   }, [request]);
 
   return debounced;
-}
-
-function useFocusFaceOnPrefill(prefillCount: number) {
-  useEffect(() => {
-    if (prefillCount > 0) focusFaceInput();
-  }, [prefillCount]);
-}
-
-function useResetOnPrefill(prefillCount: number, reset: () => void) {
-  useEffect(() => {
-    if (prefillCount > 0) reset();
-  }, [prefillCount, reset]);
 }
 
 function chooseSubmission(previous: Submission | null, request: CreateOrderRequest) {
@@ -137,7 +125,9 @@ function TicketForm({ faceText, onFaceTextChange, placeOrder }: TicketFormProps)
   );
   const quoteRequest = useDebouncedOrderRequest(request);
   const quote = useQuote(quoteRequest);
-  useFocusFaceOnPrefill(prefillCount);
+  useEffect(() => {
+    if (prefillCount > 0) focusFaceInput();
+  }, [prefillCount]);
   const current = Boolean(quote.data) && !quote.isPlaceholderData && request === quoteRequest;
 
   function submit(event: FormEvent) {
@@ -164,8 +154,16 @@ export function OrderTicket() {
   const [faceText, setFaceText] = useState(formatDollarInput(DEFAULT_FACE_CENTS));
   const placeOrder = usePlaceOrder();
   const order = useOrder(placeOrder.data?.id ?? null);
-  useResetOnPrefill(useTicket().prefillCount, placeOrder.reset);
-  useRefreshWhenPendingClears();
+  const { prefillCount } = useTicket();
+  const handledPrefill = useRef(prefillCount);
+  const { isPending, reset } = placeOrder;
+  useRefreshPortfolioOnBalanceChange();
+
+  useEffect(() => {
+    if (prefillCount === handledPrefill.current) return;
+    handledPrefill.current = prefillCount;
+    if (!isPending) reset();
+  }, [prefillCount, isPending, reset]);
 
   return (
     <aside

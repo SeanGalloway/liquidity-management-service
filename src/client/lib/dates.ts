@@ -25,10 +25,18 @@ export function addMonths(isoDate: string, months: number) {
   return addDays(fromUtcMs(target), Math.round((months - whole) * 30));
 }
 
-export function calculateEarliestMaturity(today: string) {
-  let date = addDays(today, 2);
-  while ([0, 6].includes(new Date(toUtcMs(date)).getUTCDay())) date = addDays(date, 1);
+function isWeekend(isoDate: string) {
+  return [0, 6].includes(new Date(toUtcMs(isoDate)).getUTCDay());
+}
+
+function addBusinessDay(isoDate: string) {
+  let date = addDays(isoDate, 1);
+  while (isWeekend(date)) date = addDays(date, 1);
   return date;
+}
+
+export function calculateEarliestMaturity(today: string) {
+  return addBusinessDay(addBusinessDay(today));
 }
 
 export function calculateDaysBetween(from: string, to: string) {
