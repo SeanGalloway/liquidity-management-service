@@ -6,6 +6,7 @@ import { addMonths } from '@client/lib/dates';
 import { useCurve, useTenors, useYieldHistory } from '@client/queries';
 import { CurveCard } from './curve-card';
 import { SpreadKpis } from './spread-kpis';
+import { TenorHistoryCard } from './tenor-history-card';
 import { TenorTable } from './tenor-table';
 
 export function ResearchView() {
@@ -25,6 +26,7 @@ export function ResearchView() {
     <>
       <SpreadKpis rows={rows} />
       <CurveCard curve={curve.data} rows={rows} />
+      <TenorHistoryCard tenors={tenors.data} asOf={curve.data.asOf} />
       <TenorTable rows={rows} />
     </>
   );
