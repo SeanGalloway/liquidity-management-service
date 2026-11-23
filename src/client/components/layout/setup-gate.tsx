@@ -14,7 +14,7 @@ export function SetupGate({ children }: { children: ReactNode }) {
     if (needsSetup) router.replace('/setup');
   }, [needsSetup, router]);
 
-  if (error) {
+  if (error && !status) {
     return (
       <p role="alert" className="mx-auto max-w-lg px-4 py-16 text-sm text-negative">
         Could not reach the API: {error.message}

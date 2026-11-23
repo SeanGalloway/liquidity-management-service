@@ -96,6 +96,7 @@ export function CashTimeline() {
           {data.lastMaturity && <CashflowChips timeline={data} holdings={holdings.data ?? []} />}
           {data.lastMaturity && (
             <HorizonSlider
+              key={horizon}
               today={data.today}
               horizon={horizon}
               lastMaturity={data.lastMaturity}

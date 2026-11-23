@@ -8,6 +8,7 @@ import {
   formatCents,
   formatDate,
   formatDateTime,
+  formatInstantDate,
   formatRejectReason,
   formatWholeDollars,
 } from '@client/lib/format';
@@ -15,7 +16,7 @@ import type { Order } from '@client/types';
 
 function describeOutcome(order: Order) {
   if (order.status === 'pending') {
-    return `Filling at the ${formatDate(order.quote.pricedAsOf.slice(0, 10))} close…`;
+    return `Filling at the ${formatInstantDate(order.quote.pricedAsOf)} close…`;
   }
   if (order.status === 'executed' && order.fill) {
     const { yieldBps, totalCents, executedAt } = order.fill;
@@ -44,9 +45,14 @@ export function OrderResult({ order, onReset }: { order: Order; onReset: () => v
         </p>
       </div>
 
-      <Button type="button" variant="outline" onClick={onReset} disabled={pending}>
-        {pending ? 'Waiting for fill…' : 'New order'}
+      <Button type="button" variant="outline" onClick={onReset}>
+        New order
       </Button>
+      {pending && (
+        <p className="text-xs text-muted">
+          You can start another order now; this one keeps filling and shows in the Orders tab.
+        </p>
+      )}
     </div>
   );
 }

@@ -10,7 +10,7 @@ import {
   formatSignedCents,
   formatWholeDollars,
 } from '@client/lib/format';
-import type { Quote } from '@client/types';
+import type { Balance, Quote } from '@client/types';
 
 function Row({
   label,
@@ -56,10 +56,16 @@ function PlainSummary({ quote, faceCents }: { quote: Quote; faceCents: number })
   );
 }
 
-type QuoteSummaryProps = { quote: Quote; faceCents: number; balanceCents: number | undefined };
+type QuoteSummaryProps = { quote: Quote; faceCents: number; balance: Balance | undefined };
 
-export function QuoteSummary({ quote, faceCents, balanceCents }: QuoteSummaryProps) {
-  const cashAfter = balanceCents === undefined ? null : balanceCents - quote.totalCents;
+function describeCashAfter(balance: Balance) {
+  const pending = balance.pendingOrders.count;
+  if (pending === 0) return 'Cash after';
+  return `Cash after (before ${pending} pending)`;
+}
+
+export function QuoteSummary({ quote, faceCents, balance }: QuoteSummaryProps) {
+  const cashAfter = balance ? balance.amountCents - quote.totalCents : null;
   const interpolation = quote.interpolatedFrom.join('–');
 
   return (
@@ -89,8 +95,8 @@ export function QuoteSummary({ quote, faceCents, balanceCents }: QuoteSummaryPro
       <Row label="Interest to maturity">
         <span className="text-positive">{formatSignedCents(quote.interestToMaturityCents)}</span>
       </Row>
-      {cashAfter !== null && (
-        <Row label="Cash after">
+      {balance && cashAfter !== null && (
+        <Row label={describeCashAfter(balance)}>
           <span className={cashAfter < 0 ? 'font-semibold text-negative' : undefined}>
             {formatCents(cashAfter)}
           </span>

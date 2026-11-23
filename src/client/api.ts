@@ -94,9 +94,9 @@ export async function fetchCurve(date: string) {
   return readBody<Curve>(await api.yields.curve.$get({ query: { date } }));
 }
 
-export async function fetchYieldHistory(tenors: string[]) {
+export async function fetchYieldHistory(tenors: string[], from: string) {
   const history = await readBody<{ series: YieldSeries[] }>(
-    await api.yields.history.$get({ query: { tenors: tenors.join(',') } }),
+    await api.yields.history.$get({ query: { tenors: tenors.join(','), from } }),
   );
   return history.series;
 }

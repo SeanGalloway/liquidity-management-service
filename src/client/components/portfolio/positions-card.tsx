@@ -60,7 +60,7 @@ export function PositionsCard() {
           <span className="py-2 text-[13px] text-muted">{NOTES[tab]}</span>
         </div>
         <TabsContent value="holdings" className="px-1 pb-2 sm:px-3">
-          <HoldingsTable holdings={holdings.data ?? []} />
+          <HoldingsTable holdings={holdings} />
         </TabsContent>
         <TabsContent value="orders" className="px-1 pb-2 sm:px-3">
           <OrdersTable orders={orders} />

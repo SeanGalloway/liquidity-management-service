@@ -82,7 +82,7 @@ export function CurveCard({ curve, rows }: { curve: Curve; rows: TenorRow[] }) {
         <div>
           <h2 className="text-base font-semibold">U.S. Treasury par yield curve</h2>
           <p className="mt-1 text-[13px] text-muted">
-            Click any point to start an order at that maturity
+            Click any point, or Buy in the table below, to start an order at that maturity
           </p>
         </div>
         <CompareChips value={compareKey} onChange={setCompareKey} />

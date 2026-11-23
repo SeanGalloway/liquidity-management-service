@@ -34,6 +34,12 @@ const monthYear = new Intl.DateTimeFormat('en-US', {
   year: '2-digit',
   timeZone: 'UTC',
 });
+const newYorkDate = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: 'America/New_York',
+});
 const dateTime = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
@@ -93,6 +99,10 @@ export function formatBpsChange(bps: number) {
 
 export function formatDate(isoDate: string) {
   return longDate.format(toUtcMs(isoDate));
+}
+
+export function formatInstantDate(instant: string) {
+  return newYorkDate.format(new Date(instant));
 }
 
 export function formatShortDate(isoDate: string) {

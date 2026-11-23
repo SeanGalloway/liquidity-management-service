@@ -40,7 +40,7 @@ export function calculateCurvePoints(rows: TenorRow[], compare: Curve | undefine
   return rows.map((row) => ({ ...row, compareBps: compareByTenor.get(row.tenor) ?? null }));
 }
 
-function findBand(points: CurvePoint[], kind: SecurityKind) {
+function calculateBand(points: CurvePoint[], kind: SecurityKind) {
   const tenors = points.filter((point) => point.kind === kind).map((point) => point.tenor);
   return tenors.length ? { x1: tenors[0], x2: tenors.at(-1) } : null;
 }
@@ -80,9 +80,9 @@ type YieldCurveChartProps = {
 
 export function YieldCurveChart({ points, compareLabel, onPick }: YieldCurveChartProps) {
   const bands = [
-    { label: 'BILLS', band: findBand(points, 'bill'), fill: '#f2f5fa' },
-    { label: 'NOTES', band: findBand(points, 'note'), fill: 'transparent' },
-    { label: 'BONDS', band: findBand(points, 'bond'), fill: 'transparent' },
+    { label: 'BILLS', band: calculateBand(points, 'bill'), fill: '#f2f5fa' },
+    { label: 'NOTES', band: calculateBand(points, 'note'), fill: 'transparent' },
+    { label: 'BONDS', band: calculateBand(points, 'bond'), fill: 'transparent' },
   ];
 
   function pick(index: number | string | null | undefined) {

@@ -17,7 +17,7 @@ import {
   formatDate,
   formatDateTime,
   formatRejectReason,
-  formatShortDate,
+  formatInstantDate,
   formatWholeDollars,
 } from '@client/lib/format';
 import type { useOrders } from '@client/queries';
@@ -28,7 +28,7 @@ function describeFill(order: Order) {
     return `${formatBpsAsPercent(order.fill.yieldBps)} · ${formatCents(order.fill.totalCents)}`;
   }
   if (order.status === 'pending') {
-    return `Filling at ${formatShortDate(order.quote.pricedAsOf.slice(0, 10))} close…`;
+    return `Filling at ${formatInstantDate(order.quote.pricedAsOf)} close…`;
   }
   if (order.status === 'rejected') return formatRejectReason(order.rejectReason);
   return 'Execution failed';
@@ -52,6 +52,10 @@ function OrderRow({ order }: { order: Order }) {
 export function OrdersTable({ orders }: { orders: ReturnType<typeof useOrders> }) {
   const rows = orders.data?.pages.flatMap((page) => page.data) ?? [];
 
+  if (orders.isPending) return <p className="px-3 py-8 text-center text-sm text-muted">Loading…</p>;
+  if (orders.error && !orders.data) {
+    return <p className="px-3 py-8 text-center text-sm text-negative">{orders.error.message}</p>;
+  }
   if (rows.length === 0) {
     return <p className="px-3 py-8 text-center text-sm text-muted">No orders yet.</p>;
   }

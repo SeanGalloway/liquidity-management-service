@@ -6,6 +6,7 @@ import {
   formatCompactDollars,
   formatDate,
   formatDollarInput,
+  formatInstantDate,
   formatMonthTick,
   formatRejectReason,
   formatSecurityName,
@@ -96,5 +97,12 @@ describe('labels', () => {
     expect(formatRejectReason('INSUFFICIENT_FUNDS')).toBe('Insufficient cash');
     expect(formatRejectReason('SOMETHING_ELSE')).toBe('something else');
     expect(formatRejectReason(null)).toBe('Rejected');
+  });
+});
+
+describe('instants', () => {
+  it('dates an instant on the New York calendar', () => {
+    expect(formatInstantDate('2026-11-23T00:30:00Z')).toBe('Nov 22, 2026');
+    expect(formatInstantDate('2026-11-20T20:30:00Z')).toBe('Nov 20, 2026');
   });
 });

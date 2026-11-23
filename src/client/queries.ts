@@ -32,11 +32,12 @@ export const queryKeys = {
   holdings: ['holdings'],
   orders: ['orders'],
   order: (id: string) => ['order', id],
+  timelines: ['timeline'],
   timeline: (to: string | undefined) => ['timeline', to ?? 'last-maturity'],
   quote: (request: CreateOrderRequest) => ['quote', request.maturityDate, request.faceCents],
   tenors: ['tenors'],
   curve: (date: string) => ['curve', date],
-  yieldHistory: (tenors: string[]) => ['yield-history', tenors.join(',')],
+  yieldHistory: (tenors: string[], from: string) => ['yield-history', tenors.join(','), from],
 };
 
 export function isBackfilling(status: SetupStatus | undefined) {
@@ -57,6 +58,7 @@ export function useInitializeDesk() {
   return useMutation({
     mutationFn: postSetup,
     onSuccess: (status) => queryClient.setQueryData(queryKeys.setup, status),
+    onError: () => queryClient.invalidateQueries({ queryKey: queryKeys.setup }),
   });
 }
 
@@ -70,7 +72,11 @@ export function useBalance() {
 }
 
 export function useHoldings() {
-  return useQuery({ queryKey: queryKeys.holdings, queryFn: fetchHoldings });
+  return useQuery({
+    queryKey: queryKeys.holdings,
+    queryFn: fetchHoldings,
+    refetchInterval: REFETCH_MS,
+  });
 }
 
 export function useTimeline(to: string | undefined) {
@@ -78,6 +84,7 @@ export function useTimeline(to: string | undefined) {
     queryKey: queryKeys.timeline(to),
     queryFn: () => fetchTimeline(to),
     placeholderData: keepPreviousData,
+    refetchInterval: REFETCH_MS,
   });
 }
 
@@ -87,6 +94,7 @@ export function useOrders() {
     queryFn: ({ pageParam }) => fetchOrders(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
+    refetchInterval: REFETCH_MS,
   });
 }
 
@@ -117,8 +125,8 @@ export function useRefreshPortfolio() {
   return useCallback(
     () =>
       Promise.all(
-        [queryKeys.balance, queryKeys.holdings, queryKeys.orders, ['timeline']].map((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
+        [queryKeys.balance, queryKeys.holdings, queryKeys.orders, queryKeys.timelines].map(
+          (queryKey) => queryClient.invalidateQueries({ queryKey }),
         ),
       ),
     [queryClient],
@@ -128,7 +136,7 @@ export function useRefreshPortfolio() {
 export function useQuote(request: CreateOrderRequest | null) {
   return useQuery({
     queryKey: request ? queryKeys.quote(request) : ['quote', 'none'],
-    queryFn: () => fetchQuote(request!),
+    queryFn: async () => ({ request: request!, quote: await fetchQuote(request!) }),
     enabled: request !== null,
     placeholderData: keepPreviousData,
     retry: false,
@@ -144,13 +152,14 @@ export function useCurve(date: string | null) {
     queryKey: queryKeys.curve(date ?? 'none'),
     queryFn: () => fetchCurve(date!),
     enabled: date !== null,
+    refetchInterval: date === 'latest' ? REFETCH_MS : false,
   });
 }
 
-export function useYieldHistory(tenors: string[]) {
+export function useYieldHistory(tenors: string[], from: string) {
   return useQuery({
-    queryKey: queryKeys.yieldHistory(tenors),
-    queryFn: () => fetchYieldHistory(tenors),
+    queryKey: queryKeys.yieldHistory(tenors, from),
+    queryFn: () => fetchYieldHistory(tenors, from),
     enabled: tenors.length > 0,
   });
 }

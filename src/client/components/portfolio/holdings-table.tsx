@@ -14,11 +14,12 @@ import { calculateDaysBetween, calculateTodayInNewYork } from '@client/lib/dates
 import {
   formatBpsAsPercent,
   formatCents,
-  formatDate,
+  formatInstantDate,
   formatSecurityName,
   formatTermRemaining,
   formatWholeDollars,
 } from '@client/lib/format';
+import type { useHoldings } from '@client/queries';
 import type { Holding } from '@client/types';
 
 function HoldingRow({ holding, today }: { holding: Holding; today: string }) {
@@ -30,9 +31,7 @@ function HoldingRow({ holding, today }: { holding: Holding; today: string }) {
         <div className="font-semibold">
           {formatSecurityName(security.kind, security.maturityDate)}
         </div>
-        <div className="text-xs text-muted">
-          Bought {formatDate(holding.purchasedAt.slice(0, 10))}
-        </div>
+        <div className="text-xs text-muted">Bought {formatInstantDate(holding.purchasedAt)}</div>
       </TableCell>
       <TableCell>
         <KindBadge kind={security.kind} />
@@ -50,9 +49,14 @@ function HoldingRow({ holding, today }: { holding: Holding; today: string }) {
   );
 }
 
-export function HoldingsTable({ holdings }: { holdings: Holding[] }) {
+export function HoldingsTable({ holdings: query }: { holdings: ReturnType<typeof useHoldings> }) {
   const today = calculateTodayInNewYork();
+  const holdings = query.data ?? [];
 
+  if (query.isPending) return <p className="px-3 py-8 text-center text-sm text-muted">Loading…</p>;
+  if (query.error && !query.data) {
+    return <p className="px-3 py-8 text-center text-sm text-negative">{query.error.message}</p>;
+  }
   if (holdings.length === 0) {
     return (
       <p className="px-3 py-8 text-center text-sm text-muted">

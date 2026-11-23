@@ -34,7 +34,7 @@ export function calculateCompareDate(asOf: string, key: CompareKey) {
   return addMonths(asOf, key === '1M' ? -1 : -6);
 }
 
-export function findYieldOnOrBefore(points: YieldSeries['points'], date: string) {
+export function calculateYieldOnOrBefore(points: YieldSeries['points'], date: string) {
   let found: number | null = null;
   for (const point of points) {
     if (point.date > date) break;
@@ -61,8 +61,14 @@ function calculateTenorRow(
     months: tenor?.months ?? 0,
     kind: tenor?.kind ?? 'bill',
     yieldBps: point.yieldBps,
-    change1wBps: calculateChange(point.yieldBps, findYieldOnOrBefore(points, addDays(asOf, -7))),
-    change1mBps: calculateChange(point.yieldBps, findYieldOnOrBefore(points, addMonths(asOf, -1))),
+    change1wBps: calculateChange(
+      point.yieldBps,
+      calculateYieldOnOrBefore(points, addDays(asOf, -7)),
+    ),
+    change1mBps: calculateChange(
+      point.yieldBps,
+      calculateYieldOnOrBefore(points, addMonths(asOf, -1)),
+    ),
     rangeLowBps: yields.length ? Math.min(...yields) : null,
     rangeHighBps: yields.length ? Math.max(...yields) : null,
   };

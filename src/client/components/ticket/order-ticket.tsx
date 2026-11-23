@@ -3,7 +3,7 @@
 import 'client-only';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Button } from '@client/components/ui/button';
-import { formatDate, formatDollarInput, parseDollarInput } from '@client/lib/format';
+import { formatDollarInput, formatInstantDate, parseDollarInput } from '@client/lib/format';
 import { cn } from '@client/lib/utils';
 import {
   useBalance,
@@ -32,25 +32,24 @@ function parseFaceCents(text: string) {
   return cents;
 }
 
-function useDebouncedValue<T>(value: T, delayMs: number) {
-  const [debounced, setDebounced] = useState(value);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(timer);
-  }, [value, delayMs]);
-
-  return debounced;
-}
-
-function useOrderRequest(faceText: string) {
+function useOrderRequest(faceCents: number | null) {
   const { maturityDate } = useTicket();
-  const faceCents = parseFaceCents(faceText);
 
   return useMemo(
     () => (faceCents !== null && maturityDate ? { maturityDate, faceCents } : null),
     [maturityDate, faceCents],
   );
+}
+
+function useDebouncedOrderRequest(request: CreateOrderRequest | null) {
+  const [debounced, setDebounced] = useState(request);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(request), QUOTE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [request]);
+
+  return debounced;
 }
 
 function useRefreshWhenSettled(status: string | undefined) {
@@ -69,13 +68,9 @@ function chooseSubmission(previous: Submission | null, request: CreateOrderReque
   return unchanged ? previous : { key: crypto.randomUUID(), request };
 }
 
-type QuotePanelProps = {
-  quote: ReturnType<typeof useQuote>;
-  request: CreateOrderRequest;
-  current: boolean;
-};
+type QuotePanelProps = { quote: ReturnType<typeof useQuote>; current: boolean };
 
-function QuotePanel({ quote, request, current }: QuotePanelProps) {
+function QuotePanel({ quote, current }: QuotePanelProps) {
   const balance = useBalance();
 
   if (quote.error) {
@@ -90,9 +85,9 @@ function QuotePanel({ quote, request, current }: QuotePanelProps) {
   return (
     <div className={cn('transition-opacity', !current && 'opacity-60')}>
       <QuoteSummary
-        quote={quote.data}
-        faceCents={request.faceCents}
-        balanceCents={balance.data?.amountCents}
+        quote={quote.data.quote}
+        faceCents={quote.data.request.faceCents}
+        balance={balance.data}
       />
     </div>
   );
@@ -118,7 +113,7 @@ function SubmitControls({ placeOrder, ready }: { placeOrder: PlaceOrder; ready: 
 function PricingNote({ quote }: { quote: Quote }) {
   return (
     <p className="text-xs leading-normal text-muted">
-      Priced at the {formatDate(quote.pricedAsOf.slice(0, 10))} close. Market order — fills in a few
+      Priced at the {formatInstantDate(quote.pricedAsOf)} close. Market order — fills in a few
       seconds at the latest stored close, which may differ from this estimate if new rates arrive
       first.
     </p>
@@ -133,8 +128,9 @@ type TicketFormProps = {
 
 function TicketForm({ faceText, onFaceTextChange, placeOrder }: TicketFormProps) {
   const [submission, setSubmission] = useState<Submission | null>(null);
-  const request = useOrderRequest(faceText);
-  const quoteRequest = useDebouncedValue(request, QUOTE_DEBOUNCE_MS);
+  const faceCents = parseFaceCents(faceText);
+  const request = useOrderRequest(faceCents);
+  const quoteRequest = useDebouncedOrderRequest(request);
   const quote = useQuote(quoteRequest);
   const current = Boolean(quote.data) && !quote.isPlaceholderData && request === quoteRequest;
 
@@ -150,10 +146,10 @@ function TicketForm({ faceText, onFaceTextChange, placeOrder }: TicketFormProps)
   return (
     <form onSubmit={submit} className="flex flex-col gap-[18px]" noValidate>
       <MaturityField />
-      <AmountField value={faceText} invalid={request === null} onChange={onFaceTextChange} />
-      {request && <QuotePanel quote={quote} request={request} current={current} />}
+      <AmountField value={faceText} invalid={faceCents === null} onChange={onFaceTextChange} />
+      {request && <QuotePanel quote={quote} current={current} />}
       <SubmitControls placeOrder={placeOrder} ready={current} />
-      {quote.data && <PricingNote quote={quote.data} />}
+      {quote.data && <PricingNote quote={quote.data.quote} />}
     </form>
   );
 }

@@ -4,7 +4,7 @@ import {
   calculateCompareDate,
   calculateSpreads,
   calculateTenorRows,
-  findYieldOnOrBefore,
+  calculateYieldOnOrBefore,
 } from './curve';
 
 const curve: Curve = {
@@ -35,11 +35,11 @@ const history: YieldSeries[] = [
   },
 ];
 
-describe('findYieldOnOrBefore', () => {
+describe('calculateYieldOnOrBefore', () => {
   it('takes the latest observation not after the date', () => {
-    expect(findYieldOnOrBefore(history[0]!.points, '2026-11-13')).toBe(430);
-    expect(findYieldOnOrBefore(history[0]!.points, '2026-10-20')).toBe(443);
-    expect(findYieldOnOrBefore(history[0]!.points, '2026-01-01')).toBeNull();
+    expect(calculateYieldOnOrBefore(history[0]!.points, '2026-11-13')).toBe(430);
+    expect(calculateYieldOnOrBefore(history[0]!.points, '2026-10-20')).toBe(443);
+    expect(calculateYieldOnOrBefore(history[0]!.points, '2026-01-01')).toBeNull();
   });
 });
 
