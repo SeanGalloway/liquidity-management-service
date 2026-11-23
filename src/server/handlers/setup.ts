@@ -25,6 +25,18 @@ const postSetup = createRoute({
   },
 });
 
+const resetSetup = createRoute({
+  method: 'post',
+  path: '/reset',
+  tags: ['Setup'],
+  summary:
+    'Erase balance, holdings, orders and ledger (yields kept); desk returns to uninitialized. Requires ENABLE_SIMULATION',
+  responses: {
+    200: jsonBody(SetupStatus, 'Portfolio erased; run setup again'),
+    404: errorBody('NOT_FOUND — reset is disabled'),
+  },
+});
+
 export function setupRoutes({ setup }: Container) {
   return createRouter()
     .openapi(getSetup, async (c) => {
@@ -33,5 +45,8 @@ export function setupRoutes({ setup }: Container) {
     .openapi(postSetup, async (c) => {
       const { startingBalanceCents } = c.req.valid('json');
       return c.json(await setup.initializeDesk(startingBalanceCents), 202);
+    })
+    .openapi(resetSetup, async (c) => {
+      return c.json(await setup.resetPortfolio(), 200);
     });
 }

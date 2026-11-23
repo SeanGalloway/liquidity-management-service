@@ -15,6 +15,7 @@ import {
 } from '@client/queries';
 import type { CreateOrderRequest, Quote } from '@client/types';
 import { AmountField } from './amount-field';
+import { ConfirmOrderDialog } from './confirm-order-dialog';
 import { MaturityField } from './maturity-field';
 import { OrderResult } from './order-result';
 import { QuoteSummary } from './quote-summary';
@@ -117,6 +118,7 @@ type TicketFormProps = {
 
 function TicketForm({ faceText, onFaceTextChange, placeOrder }: TicketFormProps) {
   const [submission, setSubmission] = useState<Submission | null>(null);
+  const [confirming, setConfirming] = useState<Submission | null>(null);
   const { maturityDate, prefillCount } = useTicket();
   const faceCents = parseFaceCents(faceText);
   const request = useMemo(
@@ -136,7 +138,14 @@ function TicketForm({ faceText, onFaceTextChange, placeOrder }: TicketFormProps)
 
     const next = chooseSubmission(submission, request);
     setSubmission(next);
-    placeOrder.mutate(next);
+    setConfirming(next);
+  }
+
+  function confirm() {
+    if (!confirming) return;
+
+    placeOrder.mutate(confirming);
+    setConfirming(null);
   }
 
   return (
@@ -146,6 +155,14 @@ function TicketForm({ faceText, onFaceTextChange, placeOrder }: TicketFormProps)
       {request && <QuotePanel quote={quote} current={current} />}
       <SubmitControls placeOrder={placeOrder} ready={current} />
       {quote.data && <PricingNote quote={quote.data.quote} />}
+      {confirming && quote.data && (
+        <ConfirmOrderDialog
+          quote={quote.data.quote}
+          faceCents={confirming.request.faceCents}
+          onConfirm={confirm}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
     </form>
   );
 }

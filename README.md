@@ -33,6 +33,12 @@ docker compose --profile full up --build
 - OpenAPI spec: <http://localhost:3000/api/v1/openapi.json>
 - Health: <http://localhost:3000/api/v1/health>
 
+**Demo tools**
+
+- `ENABLE_SIMULATION=true` (the default in `.env.example`) shows an orange **Simulation** panel and enables `POST /api/v1/setup/reset`.
+- The reset erases the balance, holdings, orders and ledger. Stored yields are kept.
+- It `TRUNCATE`s the append-only ledger, so keep the flag off anywhere real. Compose defaults it to `false`.
+
 **Checks**
 
 ```bash

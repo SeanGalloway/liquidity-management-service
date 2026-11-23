@@ -3,6 +3,7 @@
 import 'client-only';
 import {
   Area,
+  Bar,
   CartesianGrid,
   ComposedChart,
   Line,
@@ -18,6 +19,7 @@ import {
 import { fromUtcMs, toUtcMs } from '@client/lib/dates';
 import { formatCents, formatCompactDollars, formatDate, formatMonthTick } from '@client/lib/format';
 import {
+  calculateLandingDate,
   calculateMaturityMarkers,
   calculateTimelineSeries,
   type TimelinePoint,
@@ -27,6 +29,7 @@ import type { Timeline } from '@client/types';
 const ACCENT = '#1e4fd8';
 const GRID = '#ebeef2';
 const AXIS_TICK = { fontSize: 12, fill: '#5b6472' };
+const CASHFLOW_BAND_SHARE = 3;
 
 function TimelineTooltip({
   active,
@@ -37,9 +40,9 @@ function TimelineTooltip({
   if (!active || !point) return null;
 
   const date = fromUtcMs(point.t);
-  const events = timeline.events.filter((event) => event.date === date);
-  const balance = point.projected ?? point.actual ?? 0;
-
+  const events = timeline.events.filter(
+    (event) => calculateLandingDate(event.date, timeline.today) === date,
+  );
   return (
     <div className="rounded-md bg-ink px-2.5 py-2 text-xs leading-relaxed text-white shadow-lg">
       <div className="font-semibold">{formatDate(date)}</div>
@@ -48,10 +51,28 @@ function TimelineTooltip({
           {event.kind === 'coupon' ? 'Coupon' : 'Maturity'} +{formatCents(event.amountCents)}
         </div>
       ))}
+      <BalanceLine point={point} />
+    </div>
+  );
+}
+
+function BalanceLine({ point }: { point: TimelinePoint }) {
+  const balance = point.projected ?? point.actual ?? 0;
+  const inflow = point.inflow ?? 0;
+
+  if (inflow > 0) {
+    return (
       <div>
-        {point.actual !== undefined && point.projected === undefined ? 'Balance' : 'Projected'}{' '}
-        {formatCents(balance)}
+        Balance {formatCents(balance - inflow)} → {formatCents(balance)}
       </div>
+    );
+  }
+
+  const label =
+    point.actual !== undefined && point.projected === undefined ? 'Balance' : 'Projected';
+  return (
+    <div>
+      {label} {formatCents(balance)}
     </div>
   );
 }
@@ -61,6 +82,7 @@ export function TimelineChart({ timeline, horizon }: { timeline: Timeline; horiz
   const markers = calculateMaturityMarkers(timeline);
   const today = toUtcMs(timeline.today);
   const end = series.at(-1)?.t ?? today;
+  const largestInflow = Math.max(1, ...series.map((point) => point.inflow ?? 0));
 
   return (
     <div className="h-60 w-full">
@@ -86,6 +108,21 @@ export function TimelineChart({ timeline, horizon }: { timeline: Timeline; horiz
             axisLine={false}
             width={56}
             domain={[0, 'auto']}
+          />
+          <YAxis
+            yAxisId="cashflows"
+            hide
+            scale="sqrt"
+            domain={[0, largestInflow * CASHFLOW_BAND_SHARE ** 2]}
+          />
+          <Bar
+            yAxisId="cashflows"
+            dataKey="inflow"
+            fill={ACCENT}
+            fillOpacity={0.55}
+            barSize={6}
+            minPointSize={4}
+            isAnimationActive={false}
           />
           <Tooltip
             content={(props) => <TimelineTooltip {...props} timeline={timeline} />}

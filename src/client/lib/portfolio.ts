@@ -1,6 +1,6 @@
 import type { Holding, Timeline, TimelineEvent } from '../types';
 import { formatKind } from './format';
-import { toUtcMs } from './dates';
+import { addDays, toUtcMs } from './dates';
 
 export type PortfolioSummary = {
   holdingCount: number;
@@ -12,7 +12,7 @@ export type PortfolioSummary = {
 
 export type CashflowChip = { date: string; label: string; amountCents: number };
 
-export type TimelinePoint = { t: number; actual?: number; projected?: number };
+export type TimelinePoint = { t: number; actual?: number; projected?: number; inflow?: number };
 
 export type MaturityMarker = { t: number; date: string; amountCents: number; balanceCents: number };
 
@@ -82,10 +82,19 @@ export function calculateTimelineSeries(timeline: Timeline, horizon: string): Ti
     upsert(toUtcMs(point.date), { projected: point.balanceCents });
   }
 
+  for (const event of timeline.events) {
+    const t = toUtcMs(calculateLandingDate(event.date, timeline.today));
+    upsert(t, { inflow: (points.get(t)?.inflow ?? 0) + event.amountCents });
+  }
+
   const last = timeline.projected.at(-1);
   if (last && horizon > last.date) upsert(toUtcMs(horizon), { projected: last.balanceCents });
 
   return [...points.values()].sort((a, b) => a.t - b.t);
+}
+
+export function calculateLandingDate(payDate: string, today: string) {
+  return payDate > today ? payDate : addDays(today, 1);
 }
 
 function calculateBalanceOnOrBefore(points: Timeline['projected'], date: string) {

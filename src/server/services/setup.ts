@@ -1,6 +1,7 @@
 import 'server-only';
 import { findBalance, insertBalance } from '../db/balance';
 import type { Database } from '../db/client';
+import { deletePortfolio } from '../db/portfolio';
 import { withTransaction } from '../db/transaction';
 import { findYieldCoverage, type YieldCoverage } from '../db/yields';
 import { DomainError } from '../domain/errors';
@@ -10,23 +11,29 @@ import type { YieldsService } from './yields';
 
 export type SetupStatus = {
   initialized: boolean;
+  resetEnabled: boolean;
   yields: YieldCoverage & { backfill: JobStatus };
 };
 
 type Dependencies = {
   db: Database;
+  resetEnabled: boolean;
   balance: BalanceService;
   yields: YieldsService;
   jobRuns: JobRunsService;
 };
 
-export function createSetupService({ db, balance, yields, jobRuns }: Dependencies) {
+export function createSetupService({ db, resetEnabled, balance, yields, jobRuns }: Dependencies) {
   async function getSetupStatus(): Promise<SetupStatus> {
     const existingBalance = await findBalance(db);
     const coverage = await findYieldCoverage(db);
     const backfill = await jobRuns.getJobStatus(JOBS.syncYields);
 
-    return { initialized: Boolean(existingBalance), yields: { ...coverage, backfill } };
+    return {
+      initialized: Boolean(existingBalance),
+      resetEnabled,
+      yields: { ...coverage, backfill },
+    };
   }
 
   async function initializeDesk(startingBalanceCents: number): Promise<SetupStatus> {
@@ -49,7 +56,14 @@ export function createSetupService({ db, balance, yields, jobRuns }: Dependencie
       .catch((error) => console.error('yield sync after setup failed', error));
   }
 
-  return { getSetupStatus, initializeDesk };
+  async function resetPortfolio(): Promise<SetupStatus> {
+    if (!resetEnabled) throw new DomainError('NOT_FOUND', 'Portfolio reset is not enabled');
+
+    await deletePortfolio(db);
+    return getSetupStatus();
+  }
+
+  return { getSetupStatus, initializeDesk, resetPortfolio };
 }
 
 export type SetupService = ReturnType<typeof createSetupService>;

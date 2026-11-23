@@ -35,6 +35,7 @@ services:
       DATABASE_URL: postgres://liquidity:liquidity@postgres:5432/liquidity
       JOB_TOKEN: ${JOB_TOKEN:-change-me-local-job-token}
       TREASURY_BASE_URL: https://home.treasury.gov
+      ENABLE_SIMULATION: ${ENABLE_SIMULATION:-false}
     ports:
       - '3000:3000'
     depends_on:
