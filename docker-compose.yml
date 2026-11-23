@@ -15,6 +15,17 @@ services:
       timeout: 3s
       retries: 20
 
+  migrate:
+    profiles: ['full']
+    build:
+      context: .
+      target: migrate
+    environment:
+      DATABASE_URL: postgres://liquidity:liquidity@postgres:5432/liquidity
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   app:
     profiles: ['full']
     build:
@@ -28,8 +39,8 @@ services:
     ports:
       - '3000:3000'
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   worker:
     profiles: ['full']

@@ -9,13 +9,23 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY . .
 RUN pnpm build
+RUN pnpm exec esbuild worker/index.ts --bundle --platform=node --format=esm --outfile=dist/worker.mjs
 
-FROM build AS app
-ENV NODE_ENV=production
+FROM deps AS migrate
+COPY db ./db
+CMD ["pnpm", "db:migrate"]
+
+FROM node:22-slim AS app
+WORKDIR /app
+ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
+COPY --from=build --chown=node:node /repo/.next/standalone ./
+COPY --from=build --chown=node:node /repo/.next/static ./.next/static
+USER node
 EXPOSE 3000
-CMD ["sh", "-c", "pnpm db:migrate && pnpm start"]
+CMD ["node", "server.js"]
 
-FROM deps AS worker
-COPY worker ./worker
-COPY tsconfig.json ./
-CMD ["pnpm", "worker"]
+FROM node:22-slim AS worker
+WORKDIR /worker
+COPY --from=build /repo/dist/worker.mjs ./
+USER node
+CMD ["node", "worker.mjs"]
