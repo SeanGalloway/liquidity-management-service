@@ -24,6 +24,10 @@ function Legend() {
         <span className="size-2.5 rounded-full border-2 border-accent" aria-hidden="true" />
         Maturity
       </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2.5 w-1.5 bg-accent/55" aria-hidden="true" />
+        Cashflow in
+      </span>
     </div>
   );
 }
@@ -84,6 +88,10 @@ export function CashTimeline() {
           <p className="mt-1 text-[13px] text-muted">
             Actual balance from the ledger · projected from scheduled maturities and coupons,
             assuming no new orders
+          </p>
+          <p className="mt-1 text-[13px] text-muted">
+            Bars mark each coupon and maturity (square-root scale). Coupons are small next to the
+            balance, so the line barely moves — hover a bar for the exact change.
           </p>
         </div>
         <Legend />

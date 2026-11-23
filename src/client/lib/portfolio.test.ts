@@ -123,10 +123,23 @@ describe('calculateTimelineSeries', () => {
     expect(series).toEqual([
       { t: toUtcMs('2026-11-20'), actual: 1_500_000_000 },
       { t: toUtcMs('2026-11-22'), actual: 1_300_000_000, projected: 1_300_000_000 },
-      { t: toUtcMs('2026-12-15'), projected: 1_302_000_000 },
-      { t: toUtcMs('2027-03-18'), projected: 1_402_000_000 },
+      { t: toUtcMs('2026-12-15'), projected: 1_302_000_000, inflow: 2_000_000 },
+      { t: toUtcMs('2027-03-18'), projected: 1_402_000_000, inflow: 100_000_000 },
       { t: toUtcMs('2027-06-01'), projected: 1_402_000_000 },
     ]);
+  });
+
+  it('places an overdue cashflow on tomorrow, where the projection applies it', () => {
+    const overdue = {
+      ...timeline,
+      events: [{ date: '2026-11-20', kind: 'coupon' as const, holdingId: 'h', amountCents: 5_00 }],
+    };
+
+    const tomorrow = calculateTimelineSeries(overdue, '2026-11-22').find(
+      (point) => point.t === toUtcMs('2026-11-23'),
+    );
+
+    expect(tomorrow?.inflow).toBe(5_00);
   });
 
   it('does not add a horizon point inside the projection', () => {
