@@ -1,28 +1,55 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   --color-canvas: #f4f5f7;
   --color-surface: #ffffff;
   --color-subtle: #f7f8fa;
   --color-border: #e3e6eb;
   --color-divider: #eef0f3;
+  --color-control: #c9cfd8;
   --color-ink: #14171c;
   --color-muted: #5b6472;
+  --color-faint: #9aa3b0;
 
   --color-accent: #1e4fd8;
   --color-accent-hover: #163ba6;
   --color-accent-soft: #eef3fe;
+  --color-accent-line: #c9d6f7;
 
   --color-positive: #0d6138;
   --color-positive-soft: #e3f3ea;
   --color-pending: #7a4200;
   --color-pending-soft: #fff1db;
+  --color-pending-dot: #c77700;
   --color-negative: #a31d15;
   --color-negative-soft: #fce8e6;
 
+  --color-bill: #1a44b8;
+  --color-bill-soft: #e8eefc;
+  --color-note: #5130a8;
+  --color-note-soft: #eee9fb;
+  --color-bond: #0e5e57;
+  --color-bond-soft: #e6f2f1;
+
   --radius-card: 8px;
+
+  /* shadcn/ui slots, mapped onto Ledger */
+  --color-background: var(--color-surface);
+  --color-foreground: var(--color-ink);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--color-subtle);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted-foreground: var(--color-muted);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-ink);
+  --color-popover-foreground: #ffffff;
+  --color-destructive: var(--color-negative);
+  --color-input: var(--color-control);
+  --color-ring: var(--color-accent);
 }
 
 body {

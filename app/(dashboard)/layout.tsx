@@ -1,32 +1,23 @@
 import type { ReactNode } from 'react';
-import Link from 'next/link';
+import { AppHeader } from '@client/components/layout/app-header';
+import { SetupGate } from '@client/components/layout/setup-gate';
+import { OrderTicket } from '@client/components/ticket/order-ticket';
+import { TicketProvider } from '@client/components/ticket/ticket-context';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-[1376px] flex-wrap items-center gap-8 px-8">
-          <span className="py-4 font-bold">Liquidity</span>
-          <nav className="flex gap-7 text-sm font-semibold" aria-label="Sections">
-            <Link href="/portfolio" className="py-4">
-              Portfolio
-            </Link>
-            <Link href="/research" className="py-4">
-              Research
-            </Link>
-          </nav>
+    <SetupGate>
+      <TicketProvider>
+        <div className="min-h-screen">
+          <AppHeader />
+          <div className="mx-auto flex max-w-[1376px] flex-col gap-6 px-4 pt-7 pb-12 sm:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] lg:items-start">
+            <main className="flex min-w-0 flex-col gap-6">{children}</main>
+            <div className="lg:sticky lg:top-6">
+              <OrderTicket />
+            </div>
+          </div>
         </div>
-      </header>
-
-      <div className="mx-auto flex max-w-[1376px] flex-wrap items-start gap-6 px-8 py-7">
-        <main className="min-w-0 flex-[999_1_640px]">{children}</main>
-        <aside
-          aria-label="New order"
-          className="max-w-[420px] flex-[1_1_340px] rounded-card border border-border bg-surface p-6"
-        >
-          <h2 className="font-semibold">New order</h2>
-        </aside>
-      </div>
-    </div>
+      </TicketProvider>
+    </SetupGate>
   );
 }
