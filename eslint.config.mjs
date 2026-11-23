@@ -16,7 +16,13 @@ const config = [
     },
   },
   {
-    ignores: ['.next/**', 'node_modules/**', 'src/server/db/schema.ts', 'next-env.d.ts'],
+    ignores: [
+      '.next/**',
+      'node_modules/**',
+      '.claude/**',
+      'src/server/db/schema.ts',
+      'next-env.d.ts',
+    ],
   },
 ];
 

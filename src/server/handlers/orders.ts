@@ -7,28 +7,13 @@ import {
   Order,
   OrderList,
   OrdersQuery,
-  Quote,
-  QuoteQuery,
 } from '@shared/contracts';
 import { notImplemented } from '../domain/errors';
 import { createRouter, errorBody, jsonBody } from '../openapi';
 
-const getQuote = createRoute({
-  method: 'get',
-  path: '/quote',
-  tags: ['Orders'],
-  summary: 'Side-effect-free estimate at the latest stored close',
-  request: { query: QuoteQuery },
-  responses: {
-    200: jsonBody(Quote, 'Estimate for the ticket'),
-    400: errorBody('VALIDATION_FAILED'),
-    503: errorBody('NO_MARKET_DATA'),
-  },
-});
-
 const createOrder = createRoute({
   method: 'post',
-  path: '/orders',
+  path: '/',
   tags: ['Orders'],
   summary: 'Submit a market buy; fills asynchronously at the latest stored close',
   request: {
@@ -46,7 +31,7 @@ const createOrder = createRoute({
 
 const listOrders = createRoute({
   method: 'get',
-  path: '/orders',
+  path: '/',
   tags: ['Orders'],
   summary: 'Order history, newest first',
   request: { query: OrdersQuery },
@@ -55,7 +40,7 @@ const listOrders = createRoute({
 
 const getOrder = createRoute({
   method: 'get',
-  path: '/orders/{id}',
+  path: '/{id}',
   tags: ['Orders'],
   summary: 'One order (the ticket polls this while pending)',
   request: { params: IdParam },
@@ -64,7 +49,6 @@ const getOrder = createRoute({
 
 export function orderRoutes() {
   return createRouter()
-    .openapi(getQuote, () => notImplemented('GET /quote'))
     .openapi(createOrder, () => notImplemented('POST /orders'))
     .openapi(listOrders, () => notImplemented('GET /orders'))
     .openapi(getOrder, () => notImplemented('GET /orders/{id}'));

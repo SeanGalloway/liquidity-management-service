@@ -17,6 +17,8 @@ Status of planning steps:
 
 ---
 
+> Build sequencing and later refinements: see [IMPLEMENTATION.md](IMPLEMENTATION.md) (wins on conflict).
+
 ## Product decisions
 
 ### Scope
@@ -92,17 +94,16 @@ Two tabs, brokerage-style:
 - Source: Treasury.gov daily par yield curve (free, no key, published ~3:30–6pm ET).
 - `yields-client.ts` exposes `fetchCurve(range) → CurvePoint[]` with `observedAt` + `source`,
   so a paid intraday vendor can be swapped in later without schema changes.
-- Repo ships `db/seed/par-yield-curve.csv` (2025-11-01 → 2026-11-01), loaded with
-  `ON CONFLICT DO NOTHING`; backfill only fetches the gap. `pnpm seed:refresh` regenerates it
-  from the real API.
+- Backfill fetches the last 12 months live (one request per calendar year, ~2 requests) and
+  inserts with `ON CONFLICT DO NOTHING`; polling fetches only the gap after the latest stored date.
+  No seed CSV is shipped (removed: a year is one request, so it only helped offline demos).
 
 ### Jobs (scheduler → HTTP)
 | Endpoint | Schedule | Notes |
 |---|---|---|
 | `POST /api/jobs/fill-orders` | every 10s | Claims due pending orders (`execute_after <= now()`) with `FOR UPDATE SKIP LOCKED`, bounded batch |
-| `POST /api/jobs/poll-yields` | every 15m | Fetches latest close; no-op until a new day's row exists; fills gaps |
+| `POST /api/jobs/sync-yields` | on start + every 15m (+ after setup) | Fetches missing closes (12 months when empty); upserts |
 | `POST /api/jobs/pay-cashflows` | on startup + daily | Pays due scheduled cashflows; idempotent |
-| `POST /api/jobs/backfill-yields` | on demand (setup wizard) | Seed CSV + gap fetch |
 
 - Simulated delay is a timestamp (`execute_after = created_at + 2–5s`), not a `sleep` in the
   request, so no transaction or request is held open. Fill latency ≈ delay + up to one tick.
@@ -177,9 +178,8 @@ Same `Idempotency-Key` + same body → original order (`200`); different body �
 |---|---|---|
 | GET | `/health` | `{ ok, db, latestYieldAsOf }` — scheduler waits on this |
 | POST | `/jobs/fill-orders` | Job token. `{ claimed, executed, rejected, failed }` |
-| POST | `/jobs/poll-yields` | Job token. `{ fetched, inserted, latestAsOf }` |
+| POST | `/jobs/sync-yields` | Job token. `{ fetched, stored, earliest, latest }` |
 | POST | `/jobs/pay-cashflows` | Job token. `{ paid, totalCents }` |
-| POST | `/jobs/backfill-yields` | Job token. `{ seeded, fetched, earliest, latest }` |
 
 ---
 
@@ -253,8 +253,7 @@ liquidity-management-service/
 │   │   │   └── quote.ts               SecuritySpec + curve + face → Quote (bill | coupon)
 │   │   ├── clients/                   external boundaries, each behind an interface
 │   │   │   ├── yields-client.ts       interface YieldsClient + CurvePoint
-│   │   │   ├── treasury-gov-client.ts
-│   │   │   └── seed-csv-client.ts     same interface over db/seed CSV
+│   │   │   └── treasury-gov-client.ts
 │   │   ├── db/                        repositories: single-purpose, optional executor
 │   │   │   ├── client.ts              Kysely + pg Pool; Executor type
 │   │   │   ├── transaction.ts         withTransaction · withAdvisoryLock
@@ -316,13 +315,8 @@ liquidity-management-service/
 │
 ├── db/
 │   ├── migrate.ts                     Kysely Migrator (up / down / latest)
-│   ├── migrations/
-│   │   └── 0001_init.ts               all tables + tenor reference rows
-│   └── seed/
-│       └── par-yield-curve.csv        2025-11-01 → 2026-11-01, real Treasury data
-│
-├── scripts/
-│   └── seed-refresh.ts                regenerate the CSV from Treasury.gov
+│   └── migrations/
+│       └── 0001_init.ts               all tables + tenor reference rows
 │
 └── test/
     ├── stubs/empty.ts                 `server-only` alias target
@@ -435,7 +429,7 @@ create table yields (
   observed_at  timestamptz not null,            -- daily feed: as_of_date at 15:30 ET
   as_of_date   date not null,
   yield_bps    numeric(8,3) not null,
-  source       text not null,                   -- 'treasury.gov' | 'seed-csv' | future vendor
+  source       text not null,                   -- 'treasury.gov' | future vendor
   fetched_at   timestamptz not null default now(),
   primary key (source, tenor_id, observed_at)   -- makes poll/backfill idempotent (ON CONFLICT DO NOTHING)
 );
@@ -549,7 +543,7 @@ create index cashflows_due_idx on scheduled_cashflows (pay_date) where status = 
 ```sql
 create table job_runs (
   id           uuid primary key default uuidv7(),
-  job          text not null,                   -- 'fill-orders' | 'poll-yields' | …
+  job          text not null,                   -- 'sync-yields' | 'pay-cashflows'
   status       text not null check (status in ('running','succeeded','failed')),
   started_at   timestamptz not null default now(),
   finished_at  timestamptz,

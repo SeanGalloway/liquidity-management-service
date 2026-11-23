@@ -1,22 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createRecordingDb } from '@test/helpers/recording-db';
+import { createTestContainer, TEST_JOB_TOKEN } from '@test/helpers/test-container';
 import { createApp } from './app';
-import type { Container } from './container';
 
-const JOB_TOKEN = 'test-job-token-0123456789';
-
-function createTestApp() {
-  const { db } = createRecordingDb();
-  const container: Container = {
-    config: {
-      databaseUrl: 'postgres://unused',
-      jobToken: JOB_TOKEN,
-      treasuryBaseUrl: 'http://unused',
-    },
-    db,
-  };
-
-  return createApp(container);
+function createTestApp(scriptedResults: Parameters<typeof createRecordingDb>[0] = []) {
+  const { db } = createRecordingDb(scriptedResults);
+  return createApp(createTestContainer(db));
 }
 
 describe('api app', () => {
@@ -37,7 +26,7 @@ describe('api app', () => {
   it('accepts job calls with the job token', async () => {
     const response = await createTestApp().request('/api/v1/jobs/fill-orders', {
       method: 'POST',
-      headers: { authorization: `Bearer ${JOB_TOKEN}` },
+      headers: { authorization: `Bearer ${TEST_JOB_TOKEN}` },
     });
 
     expect(response.status).toBe(501);
@@ -49,7 +38,7 @@ describe('api app', () => {
     const doc = await response.json();
 
     expect(response.status).toBe(200);
-    expect(Object.keys(doc.paths)).toHaveLength(18);
+    expect(Object.keys(doc.paths)).toHaveLength(17);
     expect(doc.components.schemas).toHaveProperty('Order');
   });
 
@@ -63,9 +52,18 @@ describe('api app', () => {
   });
 
   it('reports health with the latest yield date', async () => {
-    const response = await createTestApp().request('/api/v1/health');
+    const app = createTestApp([[{ earliest: '2025-11-03', latest: '2026-11-20', rows: 3400 }]]);
+
+    const response = await app.request('/api/v1/health');
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, db: 'up', latestYieldAsOf: null });
+    expect(await response.json()).toEqual({ ok: true, db: 'up', latestYieldAsOf: '2026-11-20' });
+  });
+
+  it('returns NO_MARKET_DATA when no curve is stored', async () => {
+    const response = await createTestApp([[]]).request('/api/v1/yields/curve');
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ error: { code: 'NO_MARKET_DATA' } });
   });
 });

@@ -1,9 +1,7 @@
 import 'server-only';
 import { createRoute } from '@hono/zod-openapi';
-import { sql } from 'kysely';
 import { Health } from '@shared/contracts';
 import type { Container } from '../container';
-import { findLatestYieldDate } from '../db/yields';
 import { createRouter, jsonBody } from '../openapi';
 
 const getHealth = createRoute({
@@ -14,11 +12,9 @@ const getHealth = createRoute({
   responses: { 200: jsonBody(Health, 'Service is healthy') },
 });
 
-export function healthRoutes({ db }: Container) {
+export function healthRoutes({ yields }: Container) {
   return createRouter().openapi(getHealth, async (c) => {
-    await sql`select 1`.execute(db);
-    const latestYieldAsOf = await findLatestYieldDate(db);
-
-    return c.json({ ok: true, db: 'up' as const, latestYieldAsOf }, 200);
+    const coverage = await yields.getCoverage();
+    return c.json({ ok: true, db: 'up' as const, latestYieldAsOf: coverage.latest }, 200);
   });
 }

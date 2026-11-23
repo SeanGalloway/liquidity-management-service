@@ -1,16 +1,18 @@
 import 'server-only';
 import { createRoute } from '@hono/zod-openapi';
-import type { z } from 'zod';
+import { z } from 'zod';
 import {
-  BackfillResult,
   FillOrdersResult,
   PayCashflowsResult,
-  PollYieldsResult,
+  SkippedJob,
+  SyncYieldsResult,
 } from '@shared/contracts';
+import type { Container } from '../container';
 import { notImplemented } from '../domain/errors';
 import { createRouter, errorBody, jsonBody } from '../openapi';
+import { JOBS, type ExclusiveJobOutcome } from '../services/job-runs';
 
-function jobRoute(path: string, summary: string, result: z.ZodType) {
+function jobRoute<T extends z.ZodType>(path: string, summary: string, result: T) {
   return createRoute({
     method: 'post',
     path,
@@ -18,25 +20,34 @@ function jobRoute(path: string, summary: string, result: z.ZodType) {
     summary,
     security: [{ jobToken: [] }],
     responses: {
-      200: jsonBody(result, 'Job result'),
+      200: jsonBody(z.union([result, SkippedJob]), 'Job result, or skipped if already running'),
       401: errorBody('Missing or invalid job token'),
     },
   });
 }
 
 const fillOrders = jobRoute('/fill-orders', 'Fill due pending orders', FillOrdersResult);
-const pollYields = jobRoute('/poll-yields', 'Fetch the latest close if new', PollYieldsResult);
+const syncYields = jobRoute(
+  '/sync-yields',
+  'Fetch closes missing since the latest stored one (12 months when empty)',
+  SyncYieldsResult,
+);
 const payCashflows = jobRoute(
   '/pay-cashflows',
   'Pay due coupons and principal',
   PayCashflowsResult,
 );
-const backfillYields = jobRoute('/backfill-yields', 'Seed CSV + fetch gap', BackfillResult);
 
-export function jobRoutes() {
+export function jobRoutes({ jobRuns, yields }: Container) {
   return createRouter()
     .openapi(fillOrders, () => notImplemented('Job fill-orders'))
-    .openapi(pollYields, () => notImplemented('Job poll-yields'))
-    .openapi(payCashflows, () => notImplemented('Job pay-cashflows'))
-    .openapi(backfillYields, () => notImplemented('Job backfill-yields'));
+    .openapi(syncYields, async (c) => {
+      const outcome = await jobRuns.runExclusiveJob(JOBS.syncYields, yields.syncYields);
+      return c.json(toJobResponse(outcome), 200);
+    })
+    .openapi(payCashflows, () => notImplemented('Job pay-cashflows'));
+}
+
+function toJobResponse<T>(outcome: ExclusiveJobOutcome<T>) {
+  return outcome.status === 'skipped' ? { skipped: true as const } : outcome.result;
 }

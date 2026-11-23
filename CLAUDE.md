@@ -1,6 +1,7 @@
 # Liquidity Management Service
 
-Design decisions and scope live in [docs/PLAN.md](docs/PLAN.md). Read it before changing architecture.
+Design decisions and scope live in [docs/PLAN.md](docs/PLAN.md); the per-vertical build plan (and
+its later decisions, which win on conflict) in [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
 
 ## Code conventions
 
@@ -10,6 +11,9 @@ Design decisions and scope live in [docs/PLAN.md](docs/PLAN.md). Read it before 
   - `fetch*` — external API calls and their stubs (`fetchParYieldCurve`)
   - `insert*` / `update*` / `mark*` — database writes
   - `calculate*` — pure computation (`calculateBillPrice`)
+  - `get*` / `list*` — service reads (`get*` throws when absent)
+- **Repositories:** one query per function, returning an entity or a named composite entity that
+  is reused — never a one-off shape that the caller immediately destructures.
 - **Readability:** separate logical groups of statements with blank lines.
 - **Complexity:** cyclomatic complexity ≤ 10 per function. Exception: monetary calculations that
   implement a clearly published algorithm (cite the source in one line).
@@ -26,6 +30,6 @@ Design decisions and scope live in [docs/PLAN.md](docs/PLAN.md). Read it before 
 
 - `handlers → services → { db, pricing, clients }`. `pricing/` is pure.
 - Every file in `src/server/` starts with `import 'server-only'`.
-- Repository functions take the executor (`db` or `trx`) as the last parameter, defaulting to `db`.
+- Repository functions take the executor (`db` or `trx`) as a required last parameter.
   Services own transactions.
 - Money is `bigint` cents in the DB and integer cents in JSON; rates are bps. Use `decimal.js` for math.
