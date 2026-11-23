@@ -610,6 +610,7 @@ Collected as we go; the README gets this list.
   outbox and reconciliation against broker statements.
 - Real job queue (e.g. pg-boss, SQS) instead of DB polling; retries with backoff for `failed` orders.
 - Server-sent events / websockets instead of client polling.
+- Cursor paging for ledger history (`/balance/history`) once the ledger grows beyond a demo.
 - Reconciliation job asserting `sum(ledger) = balance` and alerting on drift.
 
 **Engineering**

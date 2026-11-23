@@ -44,16 +44,25 @@ export function createBalanceService({ db }: { db: Database }) {
     return entry;
   }
 
-  async function getBalance(): Promise<BalanceSummary> {
-    const balance = await findBalance(db);
-    if (!balance) throw new DomainError('NOT_INITIALIZED', 'Run setup first');
+  function getBalance(): Promise<BalanceSummary> {
+    return db
+      .transaction()
+      .setIsolationLevel('repeatable read')
+      .execute(async (trx) => {
+        const balance = await findBalance(trx);
+        if (!balance) throw new DomainError('NOT_INITIALIZED', 'Run setup first');
 
-    const pendingOrders = await findPendingOrderTotals(db);
+        const pendingOrders = await findPendingOrderTotals(trx);
 
-    return { balance, pendingOrders };
+        return { balance, pendingOrders };
+      });
   }
 
   function listBalanceHistory(range: Partial<DateRange>): Promise<LedgerEntry[]> {
+    if (range.from && range.to && range.from > range.to) {
+      throw new DomainError('VALIDATION_FAILED', `from (${range.from}) is after to (${range.to})`);
+    }
+
     return findLedgerEntries(
       {
         from: range.from ? startOfMarketDay(range.from) : undefined,

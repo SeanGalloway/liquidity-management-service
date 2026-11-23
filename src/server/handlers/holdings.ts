@@ -21,7 +21,11 @@ const getHolding = createRoute({
   tags: ['Holdings'],
   summary: 'One lot with its security and cashflow schedule',
   request: { params: IdParam },
-  responses: { 200: jsonBody(HoldingDetail, 'Holding'), 404: errorBody('NOT_FOUND') },
+  responses: {
+    200: jsonBody(HoldingDetail, 'Holding'),
+    404: errorBody('NOT_FOUND'),
+    409: errorBody('NOT_INITIALIZED'),
+  },
 });
 
 export function holdingRoutes({ holdings }: Container) {
@@ -45,7 +49,7 @@ function toHoldingDto(holding: HoldingWithSecurity) {
     security: {
       id: holding.securityId,
       cusip: holding.cusip,
-      kind: holding.kind as 'bill' | 'note' | 'bond',
+      kind: holding.kind,
       issueDate: holding.issueDate,
       maturityDate: holding.maturityDate,
       couponRateBps: holding.couponRateBps === null ? null : Number(holding.couponRateBps),
@@ -57,7 +61,7 @@ function toHoldingDto(holding: HoldingWithSecurity) {
     totalCostCents,
     purchaseYieldBps: Number(holding.purchaseYieldBps),
     purchasedAt: holding.purchasedAt.toISOString(),
-    status: holding.status as 'active' | 'matured',
+    status: holding.status,
     maturedAt: holding.maturedAt?.toISOString() ?? null,
     interestToMaturityCents: holding.cashflowTotalCents - totalCostCents,
   };

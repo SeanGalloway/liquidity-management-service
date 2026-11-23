@@ -1,23 +1,28 @@
 import 'server-only';
-import { sql, type Insertable, type Selectable } from 'kysely';
+import type { Insertable, Selectable } from 'kysely';
+import type { HoldingStatus, SecurityKind } from '../domain/types';
 import type { Executor } from './client';
 import type { Holdings } from './schema';
 import type { Security } from './securities';
 
-export type Holding = Selectable<Holdings>;
+export type Holding = Omit<Selectable<Holdings>, 'status'> & { status: HoldingStatus };
 export type NewHolding = Insertable<Holdings>;
 
-export type SecurityTerms = Pick<
-  Security,
-  'kind' | 'cusip' | 'issueDate' | 'maturityDate' | 'couponRateBps' | 'synthetic'
->;
+export type HoldingWithSecurity = Holding &
+  Pick<Security, 'cusip' | 'issueDate' | 'maturityDate' | 'couponRateBps' | 'synthetic'> & {
+    kind: SecurityKind;
+    cashflowTotalCents: number;
+  };
 
-export type HoldingWithSecurity = Holding & SecurityTerms & { cashflowTotalCents: number };
-
-export type HoldingStatusFilter = 'active' | 'matured' | 'all';
+export type HoldingStatusFilter = HoldingStatus | 'all';
 
 export function insertHolding(holding: NewHolding, ex: Executor): Promise<Holding> {
-  return ex.insertInto('holdings').values(holding).returningAll().executeTakeFirstOrThrow();
+  return ex
+    .insertInto('holdings')
+    .values(holding)
+    .returningAll()
+    .$narrowType<{ status: HoldingStatus }>()
+    .executeTakeFirstOrThrow();
 }
 
 export function findHoldingsWithSecurity(
@@ -53,11 +58,17 @@ function selectHoldingsWithSecurity(ex: Executor) {
       'securities.couponRateBps',
       'securities.synthetic',
     ])
-    .select(
-      sql<number>`(
-        select coalesce(sum(c.amount_cents), 0)::bigint
-        from scheduled_cashflows c
-        where c.holding_id = holdings.id
-      )`.as('cashflowTotalCents'),
-    );
+    .select((eb) =>
+      eb
+        .selectFrom('scheduledCashflows')
+        .select((inner) =>
+          inner
+            .cast<number>(inner.fn.coalesce(inner.fn.sum('amountCents'), inner.lit(0)), 'bigint')
+            .as('total'),
+        )
+        .whereRef('scheduledCashflows.holdingId', '=', 'holdings.id')
+        .$asScalar()
+        .as('cashflowTotalCents'),
+    )
+    .$narrowType<{ status: HoldingStatus; kind: SecurityKind; cashflowTotalCents: number }>();
 }

@@ -456,3 +456,12 @@ close, and `/timeline` returns actual + projected series.
 - Round 3: the funds pre-check reads the balance without locking (the debit's locked read decides),
   so concurrent fills don't serialize on the balance row during execution; a failure that another
   worker already settled counts as `skipped`, not `failed`; a stalled batch still counts its claim.
+
+## Changes from PR review (Vertical 4)
+
+- `pendingOrders` adds `quotedTotalCents` (cash the pending orders are expected to take) beside
+  `faceCents`; balance and pending totals are read in one `repeatable read` snapshot.
+- Ledger history rejects `from > to`; paging is Future work (no default window, so existing callers
+  still get the full ledger).
+- `kind`/`status`/`reason` are narrowed in the holdings, ledger and cashflow repositories (no DTO
+  casts); the cashflow-total subquery uses the typed builder; `SecurityTerms` inlined.

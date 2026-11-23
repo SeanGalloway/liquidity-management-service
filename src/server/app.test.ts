@@ -65,7 +65,7 @@ describe('api app', () => {
       faceCents: 100_000_000,
       cleanCostCents: 99_997_253,
       accruedPaidCents: 2_013_499,
-      purchaseYieldBps: '457.727',
+      purchaseYieldBps: '458.1',
       purchasedAt: new Date('2026-11-22T23:09:42Z'),
       status: 'active',
       maturedAt: null,
@@ -92,6 +92,7 @@ describe('api app', () => {
       couponRateBps: 457.727,
       synthetic: true,
     });
+    expect(holding.purchaseYieldBps).toBe(458.1);
     expect(holding.totalCostCents).toBe(102_010_752);
     expect(holding.interestToMaturityCents).toBe(109_154_540 - 102_010_752);
   });

@@ -26,9 +26,9 @@ export function toCashflowDto(cashflow: ScheduledCashflow) {
     id: cashflow.id,
     holdingId: cashflow.holdingId,
     date: cashflow.payDate,
-    kind: cashflow.kind as 'coupon' | 'principal',
+    kind: cashflow.kind,
     amountCents: cashflow.amountCents,
-    status: cashflow.status as 'scheduled' | 'paid',
+    status: cashflow.status,
     paidAt: cashflow.paidAt?.toISOString() ?? null,
   };
 }

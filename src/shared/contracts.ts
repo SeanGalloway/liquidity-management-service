@@ -67,7 +67,11 @@ export const Balance = z
   .object({
     amountCents: Cents,
     updatedAt: Instant,
-    pendingOrders: z.object({ count: z.number().int(), faceCents: Cents }),
+    pendingOrders: z.object({
+      count: z.number().int(),
+      faceCents: Cents,
+      quotedTotalCents: Cents.meta({ description: 'Cash the pending orders are expected to take' }),
+    }),
   })
   .meta({ id: 'Balance' });
 

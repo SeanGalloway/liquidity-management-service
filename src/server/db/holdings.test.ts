@@ -13,7 +13,8 @@ describe('holdings repository', () => {
       'inner join "securities" on "securities"."id" = "holdings"."security_id"',
     );
     expect(sql).toContain(
-      '( select coalesce(sum(c.amount_cents), 0)::bigint from scheduled_cashflows c where c.holding_id = holdings.id ) as "cashflow_total_cents"',
+      '(select cast(coalesce(sum("amount_cents"), 0) as bigint) as "total" from "scheduled_cashflows" ' +
+        'where "scheduled_cashflows"."holding_id" = "holdings"."id") as "cashflow_total_cents"',
     );
     expect(sql).toContain('where "holdings"."status" = $1');
     expect(sql).toContain('order by "securities"."maturity_date", "holdings"."purchased_at"');

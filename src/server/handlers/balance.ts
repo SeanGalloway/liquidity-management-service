@@ -52,7 +52,7 @@ function toLedgerEntryDto(entry: LedgerEntry) {
     occurredAt: entry.occurredAt.toISOString(),
     amountCents: entry.amountCents,
     balanceAfterCents: entry.balanceAfterCents,
-    reason: entry.reason as 'deposit' | 'buy' | 'coupon' | 'principal',
+    reason: entry.reason,
     ref: toLedgerRef(entry),
   };
 }
