@@ -8,6 +8,12 @@ projected cashflows until maturity.
 
 Requires Node 22, pnpm 11 and Docker.
 
+**Full stack in containers - Recommended** (Postgres → migrate → app → worker)
+
+```bash
+docker compose --profile full up --build
+```
+
 **Local dev**
 
 ```bash
@@ -16,12 +22,6 @@ pnpm install
 pnpm db:up && pnpm db:migrate
 pnpm dev      # app + API on :3000
 pnpm worker   # second terminal: job scheduler
-```
-
-**Full stack in containers** (Postgres → migrate → app → worker)
-
-```bash
-docker compose --profile full up --build
 ```
 
 **Links**
