@@ -11,21 +11,13 @@ import {
   type CurveObservation,
   type YieldCoverage,
 } from '../db/yields';
-import { addMonths } from '../domain/dates';
+import { addDays, addMonths } from '../domain/dates';
 import { DomainError } from '../domain/errors';
-import type { Clock, DateRange, IsoDate } from '../domain/types';
+import type { Clock, Curve, CurvePointValue, DateRange, IsoDate } from '../domain/types';
+import { rollForwardToBusinessDay } from '../pricing/calendar';
 
 const SYNC_LOOKBACK_MONTHS = 12;
 const HISTORY_DEFAULT_MONTHS = 6;
-
-export type CurvePointValue = { tenorCode: string; months: number; yieldBps: Decimal };
-
-export type Curve = {
-  asOfDate: IsoDate;
-  observedAt: Date;
-  source: string;
-  points: CurvePointValue[];
-};
 
 export type YieldSeries = { tenorCode: string; points: { date: IsoDate; yieldBps: Decimal }[] };
 
@@ -47,7 +39,7 @@ export function createYieldsService({ db, clock, yieldsClient }: Dependencies) {
     const today = clock.today();
     const before = await findYieldCoverage(db);
 
-    if (before.latest && before.latest >= today) {
+    if (before.latest && rollForwardToBusinessDay(addDays(before.latest, 1)) > today) {
       return { fetched: 0, stored: 0, earliest: before.earliest, latest: before.latest };
     }
 

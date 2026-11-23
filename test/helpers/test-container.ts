@@ -3,6 +3,8 @@ import type { Container } from '@server/container';
 import type { Database } from '@server/db/client';
 import { createBalanceService } from '@server/services/balance';
 import { createJobRunsService } from '@server/services/job-runs';
+import { createQuotesService } from '@server/services/quotes';
+import { createSecurityResolver } from '@server/services/security-resolver';
 import { createSetupService } from '@server/services/setup';
 import { createYieldsService } from '@server/services/yields';
 import { createFakeClock } from './fake-clock';
@@ -21,6 +23,7 @@ export function createTestContainer(db: Database): Container {
     yieldsClient: emptyYieldsClient,
   });
   const setup = createSetupService({ db, balance, yields, jobRuns });
+  const quotes = createQuotesService({ clock, yields, securityResolver: createSecurityResolver() });
 
   return {
     config: {
@@ -34,5 +37,6 @@ export function createTestContainer(db: Database): Container {
     balance,
     yields,
     setup,
+    quotes,
   };
 }

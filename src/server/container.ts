@@ -6,6 +6,8 @@ import { createSystemClock } from './domain/dates';
 import type { Clock } from './domain/types';
 import { createBalanceService, type BalanceService } from './services/balance';
 import { createJobRunsService, type JobRunsService } from './services/job-runs';
+import { createQuotesService, type QuotesService } from './services/quotes';
+import { createSecurityResolver } from './services/security-resolver';
 import { createSetupService, type SetupService } from './services/setup';
 import { createYieldsService, type YieldsService } from './services/yields';
 
@@ -17,6 +19,7 @@ export type Container = {
   balance: BalanceService;
   yields: YieldsService;
   setup: SetupService;
+  quotes: QuotesService;
 };
 
 export function createContainer(): Container {
@@ -30,6 +33,8 @@ export function createContainer(): Container {
   const balance = createBalanceService();
   const yields = createYieldsService({ db, clock, yieldsClient });
   const setup = createSetupService({ db, balance, yields, jobRuns });
+  const securityResolver = createSecurityResolver();
+  const quotes = createQuotesService({ clock, yields, securityResolver });
 
-  return { config, db, clock, jobRuns, balance, yields, setup };
+  return { config, db, clock, jobRuns, balance, yields, setup, quotes };
 }

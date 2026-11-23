@@ -372,6 +372,16 @@ close, and `/timeline` returns actual + projected series.
     `tenors`, `yields`, `jobs`; route paths inside each are relative (`/`, `/history`, `/{id}`).
 11. Repository functions take the executor as a **required** last parameter (no module-level `db`
     exists to default to; the container owns it).
+12. Holidays are **computed from Federal Reserve (Fedwire) rules** (`calculateFederalReserveHolidays(year)`,
+    cached per year) instead of a committed 30-year literal list: ~40 lines, testable, no expiry.
+    Sunday holidays move to Monday; Saturday holidays are not observed.
+13. Only **bills** roll their maturity to a business day. Notes and bonds keep their nominal maturity
+    so coupon dates stay on schedule (e.g. month-end); only *payment* dates roll forward.
+14. Settlement is `rollForwardToBusinessDay(today)`, so weekend quotes settle Monday.
+15. `quoteOrder` returns one `Quote` that carries its `SecuritySpec`; no separate `{ quote, security }`.
+    No `pricing/day-count.ts`: act/act accrual is one line inside `coupon.ts`.
+16. `syncYields` skips the Treasury request when no business day has passed since the latest
+    stored close.
 
 ## Changes from PR review (Vertical 1)
 
@@ -394,3 +404,19 @@ close, and `/timeline` returns actual + projected series.
   Treasury requests time out after 30 s; health goes through `yields.getCoverage()`; job run
   status is narrowed in the repository. Declined: a `source` filter on curve queries (single
   source today — add with the second vendor) and renaming setup's `backfill` field (UI contract).
+
+## Changes from PR review (Vertical 2)
+
+- Clean cents are computed from the **published six-decimal price** (Treasury convention), so
+  price × face always equals the amount charged.
+- Bill vs. note is decided on the requested (nominal) maturity; a bill's maturity rolls forward to a
+  business day, or back if rolling forward would cross one year.
+- `calculateQuote` branches on `security.kind`; coupon pricing reads the rate from the security and
+  throws if a coupon security has none or no coupon dates remain.
+- Declined: T+1 settlement (T+0 is the agreed simplification; T+1 in Future work, now pinned by a
+  weekday test); reusing the resolver's yield in the quote (a real off-par security's yield ≠ coupon);
+  dating synthetic notes at settlement (seasoned-security model is intentional).
+- Round 2 declined: a separate SIFMA bond-market calendar (Good Friday) — recorded in Future work.
+- Round 3: coupon pricer's citation corrected — it is SIFMA street convention (secondary market),
+  not Treasury's auction formula (App. B, simple-interest first period); accrued per 100 rounded to six
+  decimals before cents, like the clean price; `Quote.settleDate` exposed.

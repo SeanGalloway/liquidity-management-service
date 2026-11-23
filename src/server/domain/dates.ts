@@ -53,3 +53,24 @@ export function addMonths(date: IsoDate, months: number): IsoDate {
 export function yearOf(date: IsoDate): number {
   return Number(date.slice(0, 4));
 }
+
+export function dayOfWeek(date: IsoDate): number {
+  return new Date(`${date}T00:00:00Z`).getUTCDay();
+}
+
+export function calculateDaysBetween(start: IsoDate, end: IsoDate): number {
+  return Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / DAY_MS);
+}
+
+export function endOfMonth(date: IsoDate): IsoDate {
+  const [year, month] = date.split('-').map(Number) as [number, number];
+  return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+}
+
+export function isEndOfMonth(date: IsoDate): boolean {
+  return endOfMonth(date) === date;
+}
+
+export function toIsoDate(year: number, month: number, day: number): IsoDate {
+  return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+}

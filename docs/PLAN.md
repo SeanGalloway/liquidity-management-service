@@ -602,6 +602,8 @@ Collected as we go; the README gets this list.
 **Market data**
 - Paid intraday vendor behind `YieldsClient` (schema already stores `observed_at` + `source`).
 - Monotone cubic interpolation; a proper business-day calendar library instead of the hardcoded list.
+- SIFMA bond-market calendar (Good Friday, early/Friday closes) for trade/settle dates and sync
+  freshness; the Fed calendar stays for coupon and maturity payment dates.
 
 **Execution & reliability**
 - Real broker client called from `execute-order.ts`: reserve funds → send → record fill, with an
