@@ -88,6 +88,7 @@ describe('quoteOrder', () => {
     const quote = await service.quoteOrder('2031-11-30', 100_000_000);
 
     expect(quote.cashflows[0]?.date).toBe('2026-11-30');
+    expect(quote.cashflows[1]?.date).toBe('2027-06-01');
     expect(quote.cashflows.find((cashflow) => cashflow.kind === 'principal')?.date).toBe(
       '2031-12-01',
     );

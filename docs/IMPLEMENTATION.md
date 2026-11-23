@@ -409,9 +409,11 @@ close, and `/timeline` returns actual + projected series.
 
 - Clean cents are computed from the **published six-decimal price** (Treasury convention), so
   price × face always equals the amount charged.
-- Bill vs. note is decided on the business-day-rolled maturity, so a bill never exceeds one year.
+- Bill vs. note is decided on the requested (nominal) maturity; a bill's maturity rolls forward to a
+  business day, or back if rolling forward would cross one year.
 - `calculateQuote` branches on `security.kind`; coupon pricing reads the rate from the security and
   throws if a coupon security has none or no coupon dates remain.
 - Declined: T+1 settlement (T+0 is the agreed simplification; T+1 in Future work, now pinned by a
   weekday test); reusing the resolver's yield in the quote (a real off-par security's yield ≠ coupon);
   dating synthetic notes at settlement (seasoned-security model is intentional).
+- Round 2 declined: a separate SIFMA bond-market calendar (Good Friday) — recorded in Future work.

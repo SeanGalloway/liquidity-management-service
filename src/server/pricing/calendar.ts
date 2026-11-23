@@ -13,3 +13,9 @@ export function rollForwardToBusinessDay(date: IsoDate): IsoDate {
   while (!isBusinessDay(candidate)) candidate = addDays(candidate, 1);
   return candidate;
 }
+
+export function rollBackToBusinessDay(date: IsoDate): IsoDate {
+  let candidate = date;
+  while (!isBusinessDay(candidate)) candidate = addDays(candidate, -1);
+  return candidate;
+}

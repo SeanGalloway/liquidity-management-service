@@ -2,7 +2,7 @@ import 'server-only';
 import { addMonths } from '../domain/dates';
 import { DomainError } from '../domain/errors';
 import type { Curve, IsoDate, SecurityKind, SecuritySpec } from '../domain/types';
-import { rollForwardToBusinessDay } from '../pricing/calendar';
+import { rollBackToBusinessDay, rollForwardToBusinessDay } from '../pricing/calendar';
 import { interpolateYield } from '../pricing/interpolate';
 import { calculateCouponSchedule } from '../pricing/schedule';
 
@@ -18,14 +18,13 @@ export function createSecurityResolver() {
   ): SecuritySpec {
     rejectOutOfRange(requestedMaturity, settleDate);
 
-    const rolledMaturity = rollForwardToBusinessDay(requestedMaturity);
-    const kind = classifyByTerm(settleDate, rolledMaturity);
+    const kind = classifyByTerm(settleDate, requestedMaturity);
 
     if (kind === 'bill') {
       return synthetic({
         kind,
         issueDate: settleDate,
-        maturityDate: rolledMaturity,
+        maturityDate: rollBillMaturity(requestedMaturity, settleDate),
         couponRateBps: null,
       });
     }
@@ -57,6 +56,13 @@ function rejectOutOfRange(requestedMaturity: IsoDate, settleDate: IsoDate) {
   if (requestedMaturity > addMonths(settleDate, MAX_TERM_MONTHS)) {
     throw new DomainError('VALIDATION_FAILED', 'Maturity must be within 30 years');
   }
+}
+
+function rollBillMaturity(requestedMaturity: IsoDate, settleDate: IsoDate): IsoDate {
+  const rolledForward = rollForwardToBusinessDay(requestedMaturity);
+  const oneYearOut = addMonths(settleDate, BILL_MAX_MONTHS);
+
+  return rolledForward <= oneYearOut ? rolledForward : rollBackToBusinessDay(requestedMaturity);
 }
 
 function classifyByTerm(settleDate: IsoDate, maturityDate: IsoDate): SecurityKind {

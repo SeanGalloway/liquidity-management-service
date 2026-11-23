@@ -23,11 +23,18 @@ describe('resolveSecurity', () => {
     );
   });
 
-  it('never stretches a bill past one year by rolling its maturity', () => {
+  it('rolls a one-year bill back rather than past one year', () => {
     const security = resolveSecurity('2027-11-27', NOV_20_2026_CURVE, '2026-11-27');
 
+    expect(security.kind).toBe('bill');
+    expect(security.maturityDate).toBe('2027-11-26');
+  });
+
+  it('classifies an exactly ten-year weekend maturity as a note on its nominal date', () => {
+    const security = resolveSecurity('2036-11-23', NOV_20_2026_CURVE, SETTLE);
+
     expect(security.kind).toBe('note');
-    expect(security.maturityDate).toBe('2027-11-27');
+    expect(security.maturityDate).toBe('2036-11-23');
   });
 
   it('resolves longer maturities to par notes on their nominal dates', () => {
@@ -36,7 +43,7 @@ describe('resolveSecurity', () => {
     expect(security.kind).toBe('note');
     expect(security.maturityDate).toBe('2028-11-23');
     expect(security.issueDate).toBe('2026-11-23');
-    expect(security.couponRateBps?.toNumber()).toBeCloseTo(463, 0);
+    expect(security.couponRateBps?.toNumber()).toBe(463.003);
   });
 
   it('classifies terms beyond ten years as bonds', () => {
