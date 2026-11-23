@@ -11,6 +11,18 @@ describe('dates', () => {
     );
   });
 
+  it('resolves New York midnight with the offset in force at midnight on DST changeover days', () => {
+    expect(toNewYorkInstant('2026-03-08', '00:00:00').toISOString()).toBe(
+      '2026-03-08T05:00:00.000Z',
+    );
+    expect(toNewYorkInstant('2026-11-01', '00:00:00').toISOString()).toBe(
+      '2026-11-01T04:00:00.000Z',
+    );
+    expect(toNewYorkInstant('2026-03-08', '15:30:00').toISOString()).toBe(
+      '2026-03-08T19:30:00.000Z',
+    );
+  });
+
   it('uses the New York calendar date for "today"', () => {
     expect(toNewYorkDate(new Date('2026-11-23T03:00:00Z'))).toBe('2026-11-22');
   });

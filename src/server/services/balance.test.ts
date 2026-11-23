@@ -62,7 +62,7 @@ describe('balance reads', () => {
 
     expect(summary.balance.amountCents).toBe(1_000_00);
     expect(summary.pendingOrders).toEqual(totals);
-    expect(sql()[0]).toBe('begin');
+    expect(sql()[0]).toBe('begin isolation level repeatable read');
     expect(sql()[2]).toContain('sum("quoted_total_cents")');
     expect(sql()[3]).toBe('commit');
   });

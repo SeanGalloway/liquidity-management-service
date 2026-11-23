@@ -29,10 +29,17 @@ export function toNewYorkDate(instant: Date): IsoDate {
 }
 
 export function toNewYorkInstant(date: IsoDate, time: string): Date {
-  const noonUtc = new Date(`${date}T12:00:00Z`);
-  const offset = newYorkOffsetFormat.format(noonUtc).split('GMT')[1] ?? '-05:00';
+  const wallClockAsUtc = Date.parse(`${date}T${time}Z`);
+  const firstGuess = wallClockAsUtc - newYorkOffsetMs(wallClockAsUtc);
 
-  return new Date(`${date}T${time}${offset}`);
+  return new Date(wallClockAsUtc - newYorkOffsetMs(firstGuess));
+}
+
+function newYorkOffsetMs(instantMs: number): number {
+  const offset = newYorkOffsetFormat.format(instantMs).split('GMT')[1] || '+00:00';
+  const [hours = 0, minutes = 0] = offset.split(':').map(Number);
+
+  return (hours * 60 + Math.sign(hours) * minutes) * 60_000;
 }
 
 export function addDays(date: IsoDate, days: number): IsoDate {

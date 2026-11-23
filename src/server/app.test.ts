@@ -97,6 +97,24 @@ describe('api app', () => {
     expect(holding.interestToMaturityCents).toBe(109_154_540 - 102_010_752);
   });
 
+  it('maps the balance with pending exposure to the contract', async () => {
+    const updatedAt = new Date('2026-11-22T23:09:42Z');
+    const app = createTestApp([
+      [{ id: 1 }],
+      [{ id: 1, amountCents: 1_323_996_362, updatedAt }],
+      [{ count: 1, faceCents: 75_000_000, quotedTotalCents: 73_992_886 }],
+    ]);
+
+    const response = await app.request('/api/v1/balance');
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      amountCents: 1_323_996_362,
+      updatedAt: '2026-11-22T23:09:42.000Z',
+      pendingOrders: { count: 1, faceCents: 75_000_000, quotedTotalCents: 73_992_886 },
+    });
+  });
+
   it('labels each ledger entry with what caused it', async () => {
     const entry = (overrides: object) => ({
       id: 'entry',

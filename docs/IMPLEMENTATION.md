@@ -468,3 +468,6 @@ close, and `/timeline` returns actual + projected series.
 - Round 2: shared `rejectInvertedRange` in `domain/dates` (yields + balance, and cashflows next);
   narrowing types declared once and reused for entity + `$narrowType`; `SecurityKind` and the
   ledger reason derived from the contract; 400s documented on history and holdings list.
+- Round 3: `toNewYorkInstant` resolves the UTC offset at the target wall-clock time (midnight on
+  DST changeover days was off by an hour); the recording db records isolation levels; holdings sort
+  ends on `id`; `GET /balance` mapping tested.

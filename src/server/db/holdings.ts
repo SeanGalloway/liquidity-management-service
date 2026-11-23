@@ -9,7 +9,6 @@ export type Holding = Omit<Selectable<Holdings>, 'status'> & { status: HoldingSt
 export type NewHolding = Insertable<Holdings>;
 
 type HoldingWithSecurityNarrowing = {
-  status: HoldingStatus;
   kind: SecurityKind;
   cashflowTotalCents: number;
 };
@@ -35,7 +34,8 @@ export function findHoldingsWithSecurity(
 ): Promise<HoldingWithSecurity[]> {
   let query = selectHoldingsWithSecurity(ex)
     .orderBy('securities.maturityDate')
-    .orderBy('holdings.purchasedAt');
+    .orderBy('holdings.purchasedAt')
+    .orderBy('holdings.id');
 
   if (status !== 'all') query = query.where('holdings.status', '=', status);
 
@@ -74,5 +74,5 @@ function selectHoldingsWithSecurity(ex: Executor) {
         .$asScalar()
         .as('cashflowTotalCents'),
     )
-    .$narrowType<HoldingWithSecurityNarrowing>();
+    .$narrowType<HoldingWithSecurityNarrowing & Pick<Holding, 'status'>>();
 }

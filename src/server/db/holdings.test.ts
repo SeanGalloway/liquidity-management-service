@@ -17,7 +17,9 @@ describe('holdings repository', () => {
         'where "scheduled_cashflows"."holding_id" = "holdings"."id") as "cashflow_total_cents"',
     );
     expect(sql).toContain('where "holdings"."status" = $1');
-    expect(sql).toContain('order by "securities"."maturity_date", "holdings"."purchased_at"');
+    expect(sql).toContain(
+      'order by "securities"."maturity_date", "holdings"."purchased_at", "holdings"."id"',
+    );
     expect(queries[0]?.parameters).toEqual(['active']);
   });
 
