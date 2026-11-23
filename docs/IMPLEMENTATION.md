@@ -490,3 +490,6 @@ close, and `/timeline` returns actual + projected series.
 - Round 2: `actual` is a step series that always ends today at the current balance (documented in
   the contract); `paid_at`/`matured_at` use `clock_timestamp()` like the ledger; cashflow ordering
   ends on `id`; a payment failure names its cashflow; market time zone passed to SQL as a parameter.
+- Round 3: payment failures keep the root cause in the message (persisted in `job_runs`);
+  `projected[0]` equals today's actual balance, events keep their real pay dates, and overdue
+  cashflows project onto tomorrow (the next daily run).

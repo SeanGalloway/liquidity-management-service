@@ -118,9 +118,9 @@ export const Timeline = z
         'Step series: each point is the closing balance until the next point; ends today',
     }),
     projected: z.array(BalancePoint),
-    events: z.array(
-      z.object({ date: IsoDate, kind: CashflowKind, holdingId: Uuid, amountCents: Cents }),
-    ),
+    events: z
+      .array(z.object({ date: IsoDate, kind: CashflowKind, holdingId: Uuid, amountCents: Cents }))
+      .meta({ description: 'Scheduled cashflows by pay date; overdue ones project onto tomorrow' }),
   })
   .meta({ id: 'Timeline' });
 

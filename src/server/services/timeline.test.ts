@@ -61,10 +61,12 @@ describe('getTimeline', () => {
     expect(timeline.actual).toEqual([{ date: '2026-11-22', balanceCents: 1_500_000_000 }]);
     expect(timeline.lastMaturity).toBe('2028-06-15');
     expect(timeline.events.map((event) => event.date)).toEqual([
-      '2026-11-22',
+      '2026-11-20',
       '2027-03-18',
       '2028-06-15',
     ]);
+    expect(timeline.projected[0]).toEqual(timeline.actual.at(-1));
+    expect(timeline.projected[1]).toEqual({ date: '2026-11-23', balanceCents: 1_500_000_010 });
     expect(timeline.projected.at(-1)).toEqual({ date: '2028-06-15', balanceCents: 1_500_001_510 });
   });
 

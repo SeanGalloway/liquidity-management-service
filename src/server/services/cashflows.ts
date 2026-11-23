@@ -53,7 +53,8 @@ export function createCashflowsService({ db, clock, balance }: Dependencies) {
       });
     } catch (error) {
       if (!claimedId) throw error;
-      throw new Error(`Cashflow ${claimedId} could not be paid`, { cause: error });
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`Cashflow ${claimedId} could not be paid: ${reason}`, { cause: error });
     }
   }
 

@@ -86,7 +86,7 @@ describe('payNextDueCashflow failures', () => {
     const { service } = createService([[COUPON], new Error('constraint violated')]);
 
     await expect(service.payNextDueCashflow()).rejects.toThrow(
-      'Cashflow cashflow-1 could not be paid',
+      'Cashflow cashflow-1 could not be paid: constraint violated',
     );
   });
 });

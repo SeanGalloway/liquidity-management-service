@@ -3,6 +3,7 @@ import { findBalance } from '../db/balance';
 import { findCashflows, type ScheduledCashflow } from '../db/cashflows';
 import type { Database } from '../db/client';
 import { findDailyClosingBalances, type DailyBalance } from '../db/ledger';
+import { addDays } from '../domain/dates';
 import { DomainError } from '../domain/errors';
 import type { CashflowKind, Clock, IsoDate } from '../domain/types';
 
@@ -41,9 +42,7 @@ export function createTimelineService({ db, clock }: { db: Database; clock: Cloc
 
         const lastMaturity = calculateLastMaturity(scheduled);
         const horizon = to ?? lastMaturity ?? today;
-        const events = scheduled
-          .map((cashflow) => toEvent(cashflow, today))
-          .filter((event) => event.date <= horizon);
+        const events = scheduled.map(toEvent).filter((event) => event.date <= horizon);
 
         const projected = calculateProjection(balance.amountCents, today, horizon, events);
 
@@ -63,14 +62,16 @@ export function calculateProjection(
   events: TimelineEvent[],
 ): DailyBalance[] {
   const points: DailyBalance[] = [{ date: today, balanceCents }];
+  const nextRun = addDays(today, 1);
   let running = balanceCents;
 
   for (const event of events) {
     running += event.amountCents;
 
+    const landsOn = event.date > today ? event.date : nextRun;
     const last = points[points.length - 1];
-    if (last?.date === event.date) last.balanceCents = running;
-    else points.push({ date: event.date, balanceCents: running });
+    if (last && last.date !== today && last.date === landsOn) last.balanceCents = running;
+    else points.push({ date: landsOn, balanceCents: running });
   }
 
   const last = points[points.length - 1];
@@ -90,9 +91,9 @@ function endAtToday(closes: DailyBalance[], today: IsoDate, balanceCents: number
   return [...closes, { date: today, balanceCents }];
 }
 
-function toEvent(cashflow: ScheduledCashflow, today: IsoDate): TimelineEvent {
+function toEvent(cashflow: ScheduledCashflow): TimelineEvent {
   return {
-    date: cashflow.payDate < today ? today : cashflow.payDate,
+    date: cashflow.payDate,
     kind: cashflow.kind,
     holdingId: cashflow.holdingId,
     amountCents: cashflow.amountCents,
