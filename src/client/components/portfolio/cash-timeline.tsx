@@ -50,6 +50,18 @@ function CashflowChips({ timeline, holdings }: { timeline: Timeline; holdings: H
   );
 }
 
+function TimelinePlot({ timeline, horizon }: { timeline: Timeline; horizon: string }) {
+  if (timeline.actual.length > 1 || timeline.lastMaturity) {
+    return <TimelineChart timeline={timeline} horizon={horizon} />;
+  }
+
+  return (
+    <p className="rounded-md bg-subtle px-4 py-10 text-center text-sm text-muted">
+      Your cash history and projected maturities appear here once you hold Treasuries.
+    </p>
+  );
+}
+
 function calculateDefaultHorizon(timeline: Timeline | undefined) {
   return timeline?.lastMaturity ?? timeline?.today ?? '';
 }
@@ -80,8 +92,8 @@ export function CashTimeline() {
       {timeline.error && <p className="text-sm text-negative">{timeline.error.message}</p>}
       {data && (
         <>
-          <TimelineChart timeline={data} horizon={horizon} />
-          <CashflowChips timeline={data} holdings={holdings.data ?? []} />
+          <TimelinePlot timeline={data} horizon={horizon} />
+          {data.lastMaturity && <CashflowChips timeline={data} holdings={holdings.data ?? []} />}
           {data.lastMaturity && (
             <HorizonSlider
               today={data.today}
