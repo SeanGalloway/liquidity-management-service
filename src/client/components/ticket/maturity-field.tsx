@@ -3,7 +3,7 @@
 import 'client-only';
 import { Input } from '@client/components/ui/input';
 import { Label } from '@client/components/ui/label';
-import { addDays, addMonths, calculateTodayInNewYork } from '@client/lib/dates';
+import { addMonths, calculateEarliestMaturity, getTodayInNewYork } from '@client/lib/dates';
 import { cn } from '@client/lib/utils';
 import { useTicket } from './ticket-context';
 
@@ -19,7 +19,7 @@ const TENOR_SHORTCUTS = [
 
 export function MaturityField() {
   const { maturityDate, setMaturityDate } = useTicket();
-  const today = calculateTodayInNewYork();
+  const today = getTodayInNewYork();
 
   return (
     <div className="flex flex-col gap-2">
@@ -28,7 +28,7 @@ export function MaturityField() {
         id="ticket-maturity"
         type="date"
         required
-        min={addDays(today, 2)}
+        min={calculateEarliestMaturity(today)}
         max={addMonths(today, 360)}
         value={maturityDate}
         onChange={(event) => setMaturityDate(event.target.value)}
@@ -46,7 +46,7 @@ export function MaturityField() {
               aria-label={`${code} from today`}
               onClick={() => setMaturityDate(date)}
               className={cn(
-                'h-9 min-w-11 rounded-md border border-[#d5dae1] bg-surface px-2.5 text-[13px] font-medium pointer-coarse:h-11',
+                'h-9 min-w-11 rounded-md border border-control bg-surface px-2.5 text-[13px] font-medium pointer-coarse:h-11',
                 'hover:border-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
                 selected && 'border-accent bg-accent-soft text-accent',
               )}

@@ -2,7 +2,7 @@
 
 import 'client-only';
 import { KpiGroup, KpiTile } from '@client/components/kpi';
-import { calculateDaysBetween, calculateTodayInNewYork } from '@client/lib/dates';
+import { calculateDaysBetween, getTodayInNewYork } from '@client/lib/dates';
 import {
   formatBpsAsPercent,
   formatCents,
@@ -28,7 +28,7 @@ function describeHoldings(summary: PortfolioSummary) {
 
 function describeNextMaturity(summary: PortfolioSummary) {
   if (!summary.nextMaturity) return 'Nothing scheduled';
-  const days = calculateDaysBetween(calculateTodayInNewYork(), summary.nextMaturity.date);
+  const days = calculateDaysBetween(getTodayInNewYork(), summary.nextMaturity.date);
   return `${formatDate(summary.nextMaturity.date)} · in ${days} ${days === 1 ? 'day' : 'days'}`;
 }
 

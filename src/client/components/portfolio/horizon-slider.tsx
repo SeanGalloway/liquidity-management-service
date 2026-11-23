@@ -26,7 +26,13 @@ export function HorizonSlider({
   const pathname = usePathname();
   const maxDays = calculateDaysBetween(today, lastMaturity);
   const [days, setDays] = useState(() => calculateDaysBetween(today, horizon));
+  const [syncedHorizon, setSyncedHorizon] = useState(horizon);
   const shownDate = addDays(today, days);
+
+  if (horizon !== syncedHorizon) {
+    setSyncedHorizon(horizon);
+    setDays(calculateDaysBetween(today, horizon));
+  }
 
   function commit(value: number) {
     const to = addDays(today, value);
@@ -39,8 +45,7 @@ export function HorizonSlider({
         Projection horizon
       </span>
       <Slider
-        aria-labelledby="horizon-label"
-        aria-valuetext={formatDate(shownDate)}
+        thumbProps={{ 'aria-labelledby': 'horizon-label', 'aria-valuetext': formatDate(shownDate) }}
         min={Math.min(MIN_HORIZON_DAYS, maxDays)}
         max={maxDays}
         step={1}

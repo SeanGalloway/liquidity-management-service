@@ -98,6 +98,11 @@ describe('calculateCashflowChips', () => {
     ]);
   });
 
+  it('orders chips by date whatever order the events arrive in', () => {
+    const chips = calculateCashflowChips([...timeline.events].reverse(), holdings);
+    expect(chips.map((chip) => chip.date)).toEqual(['2026-12-15', '2027-03-18']);
+  });
+
   it('labels mixed maturities generically and respects the limit', () => {
     const events = [
       { date: '2027-03-18', kind: 'principal' as const, holdingId: 'bill-a', amountCents: 1 },

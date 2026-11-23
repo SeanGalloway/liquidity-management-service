@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@client/components/ui/table';
-import { calculateDaysBetween, calculateTodayInNewYork } from '@client/lib/dates';
+import { calculateDaysBetween, getTodayInNewYork } from '@client/lib/dates';
 import {
   formatBpsAsPercent,
   formatCents,
@@ -50,7 +50,7 @@ function HoldingRow({ holding, today }: { holding: Holding; today: string }) {
 }
 
 export function HoldingsTable({ holdings: query }: { holdings: ReturnType<typeof useHoldings> }) {
-  const today = calculateTodayInNewYork();
+  const today = getTodayInNewYork();
   const holdings = query.data ?? [];
 
   if (query.isPending) return <p className="px-3 py-8 text-center text-sm text-muted">Loading…</p>;

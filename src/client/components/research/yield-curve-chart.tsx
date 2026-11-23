@@ -13,7 +13,7 @@ import {
   type TooltipContentProps,
 } from 'recharts';
 import type { TenorRow } from '@client/lib/curve';
-import { addMonths, calculateTodayInNewYork } from '@client/lib/dates';
+import { addMonths, getTodayInNewYork } from '@client/lib/dates';
 import {
   formatBpsAsPercent,
   formatBpsChange,
@@ -51,7 +51,7 @@ function CurveTooltip({ active, payload, compareLabel }: CurveTooltipProps) {
   const point = payload?.[0]?.payload as CurvePoint | undefined;
   if (!active || !point) return null;
 
-  const maturity = addMonths(calculateTodayInNewYork(), point.months);
+  const maturity = addMonths(getTodayInNewYork(), point.months);
   const change = point.compareBps === null ? null : point.yieldBps - point.compareBps;
 
   return (
@@ -117,7 +117,8 @@ export function YieldCurveChart({ points, compareLabel, onPick }: YieldCurveChar
             tick={AXIS_TICK}
             tickLine={false}
             axisLine={{ stroke: GRID }}
-            interval={0}
+            interval="preserveStartEnd"
+            minTickGap={4}
           />
           <YAxis
             tickFormatter={(bps: number) => formatBpsAsPercent(bps)}

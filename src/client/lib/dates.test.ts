@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, addMonths, calculateDaysBetween, calculateTodayInNewYork } from './dates';
+import {
+  addDays,
+  addMonths,
+  calculateDaysBetween,
+  calculateEarliestMaturity,
+  getTodayInNewYork,
+} from './dates';
 
 describe('addMonths', () => {
   it('adds whole months', () => {
@@ -29,7 +35,15 @@ describe('day arithmetic', () => {
   });
 
   it('reads today on the New York calendar', () => {
-    expect(calculateTodayInNewYork(new Date('2026-11-23T03:00:00Z'))).toBe('2026-11-22');
-    expect(calculateTodayInNewYork(new Date('2026-11-23T05:00:00Z'))).toBe('2026-11-23');
+    expect(getTodayInNewYork(new Date('2026-11-23T03:00:00Z'))).toBe('2026-11-22');
+    expect(getTodayInNewYork(new Date('2026-11-23T05:00:00Z'))).toBe('2026-11-23');
+  });
+});
+
+describe('calculateEarliestMaturity', () => {
+  it('is two days out, rolled past a weekend', () => {
+    expect(calculateEarliestMaturity('2026-11-23')).toBe('2026-11-25');
+    expect(calculateEarliestMaturity('2026-11-20')).toBe('2026-11-23');
+    expect(calculateEarliestMaturity('2026-11-19')).toBe('2026-11-23');
   });
 });

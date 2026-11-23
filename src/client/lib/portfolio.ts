@@ -64,7 +64,8 @@ export function calculateCashflowChips(
     groups.set(key, [...(groups.get(key) ?? []), event]);
   }
 
-  return [...groups.values()].slice(0, limit).map((group) => ({
+  const byDate = [...groups.values()].sort((a, b) => a[0]!.date.localeCompare(b[0]!.date));
+  return byDate.slice(0, limit).map((group) => ({
     date: group[0]!.date,
     label: labelCashflowGroup(group, kindByHolding),
     amountCents: sum(group.map((event) => event.amountCents)),
@@ -87,8 +88,11 @@ export function calculateTimelineSeries(timeline: Timeline, horizon: string): Ti
   return [...points.values()].sort((a, b) => a.t - b.t);
 }
 
+function calculateBalanceOnOrBefore(points: Timeline['projected'], date: string) {
+  return points.filter((point) => point.date <= date).at(-1)?.balanceCents ?? 0;
+}
+
 export function calculateMaturityMarkers(timeline: Timeline): MaturityMarker[] {
-  const balanceByDate = new Map(timeline.projected.map((p) => [p.date, p.balanceCents]));
   const markers = new Map<string, MaturityMarker>();
 
   for (const event of timeline.events.filter((e) => e.kind === 'principal')) {
@@ -97,7 +101,7 @@ export function calculateMaturityMarkers(timeline: Timeline): MaturityMarker[] {
       t: toUtcMs(event.date),
       date: event.date,
       amountCents: (existing?.amountCents ?? 0) + event.amountCents,
-      balanceCents: balanceByDate.get(event.date) ?? 0,
+      balanceCents: calculateBalanceOnOrBefore(timeline.projected, event.date),
     });
   }
 

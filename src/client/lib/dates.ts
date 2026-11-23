@@ -8,7 +8,7 @@ export function fromUtcMs(ms: number) {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
-export function calculateTodayInNewYork(now = new Date()) {
+export function getTodayInNewYork(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(now);
 }
 
@@ -23,6 +23,12 @@ export function addMonths(isoDate: string, months: number) {
   const target = Date.UTC(year, month - 1 + whole, Math.min(day, lastDayOfTarget));
 
   return addDays(fromUtcMs(target), Math.round((months - whole) * 30));
+}
+
+export function calculateEarliestMaturity(today: string) {
+  let date = addDays(today, 2);
+  while ([0, 6].includes(new Date(toUtcMs(date)).getUTCDay())) date = addDays(date, 1);
+  return date;
 }
 
 export function calculateDaysBetween(from: string, to: string) {

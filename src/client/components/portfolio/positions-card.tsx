@@ -17,7 +17,7 @@ const TRIGGER_CLASS =
 
 function Count({ children }: { children: number | string }) {
   return (
-    <span className="rounded-full bg-divider px-1.5 py-px text-xs font-semibold text-[#454e5c]">
+    <span className="rounded-full bg-divider px-1.5 py-px text-xs font-semibold text-muted">
       {children}
     </span>
   );

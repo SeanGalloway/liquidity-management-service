@@ -2,6 +2,7 @@
 
 import 'client-only';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { ApiError } from '@client/api';
 import { Button } from '@client/components/ui/button';
 import { formatDollarInput, formatInstantDate, parseDollarInput } from '@client/lib/format';
 import { cn } from '@client/lib/utils';
@@ -10,14 +11,14 @@ import {
   useOrder,
   usePlaceOrder,
   useQuote,
-  useRefreshPortfolio,
+  useRefreshWhenPendingClears,
 } from '@client/queries';
 import type { CreateOrderRequest, Quote } from '@client/types';
 import { AmountField } from './amount-field';
 import { MaturityField } from './maturity-field';
 import { OrderResult } from './order-result';
 import { QuoteSummary } from './quote-summary';
-import { TICKET_ID, useTicket } from './ticket-context';
+import { focusFaceInput, TICKET_ID, useTicket } from './ticket-context';
 
 const QUOTE_DEBOUNCE_MS = 300;
 const FACE_STEP_CENTS = 10_000;
@@ -32,15 +33,6 @@ function parseFaceCents(text: string) {
   return cents;
 }
 
-function useOrderRequest(faceCents: number | null) {
-  const { maturityDate } = useTicket();
-
-  return useMemo(
-    () => (faceCents !== null && maturityDate ? { maturityDate, faceCents } : null),
-    [maturityDate, faceCents],
-  );
-}
-
 function useDebouncedOrderRequest(request: CreateOrderRequest | null) {
   const [debounced, setDebounced] = useState(request);
 
@@ -52,13 +44,16 @@ function useDebouncedOrderRequest(request: CreateOrderRequest | null) {
   return debounced;
 }
 
-function useRefreshWhenSettled(status: string | undefined) {
-  const refreshPortfolio = useRefreshPortfolio();
-  const settled = status !== undefined && status !== 'pending';
-
+function useFocusFaceOnPrefill(prefillCount: number) {
   useEffect(() => {
-    if (settled) void refreshPortfolio();
-  }, [settled, refreshPortfolio]);
+    if (prefillCount > 0) focusFaceInput();
+  }, [prefillCount]);
+}
+
+function useResetOnPrefill(prefillCount: number, reset: () => void) {
+  useEffect(() => {
+    if (prefillCount > 0) reset();
+  }, [prefillCount, reset]);
 }
 
 function chooseSubmission(previous: Submission | null, request: CreateOrderRequest) {
@@ -93,14 +88,20 @@ function QuotePanel({ quote, current }: QuotePanelProps) {
   );
 }
 
+function isRetryable(error: Error | null) {
+  return error !== null && !(error instanceof ApiError && error.status < 500);
+}
+
 function SubmitControls({ placeOrder, ready }: { placeOrder: PlaceOrder; ready: boolean }) {
-  const label = placeOrder.error ? 'Retry order' : 'Place order';
+  const retryable = isRetryable(placeOrder.error);
+  const label = retryable ? 'Retry order' : 'Place order';
 
   return (
     <>
       {placeOrder.error && (
         <p role="alert" className="text-sm text-negative">
-          Order not sent: {placeOrder.error.message}. Retrying reuses the same order key.
+          Order not sent: {placeOrder.error.message}
+          {retryable && '. Retrying is safe: it reuses the same order key.'}
         </p>
       )}
       <Button type="submit" disabled={!ready || placeOrder.isPending}>
@@ -128,10 +129,15 @@ type TicketFormProps = {
 
 function TicketForm({ faceText, onFaceTextChange, placeOrder }: TicketFormProps) {
   const [submission, setSubmission] = useState<Submission | null>(null);
+  const { maturityDate, prefillCount } = useTicket();
   const faceCents = parseFaceCents(faceText);
-  const request = useOrderRequest(faceCents);
+  const request = useMemo(
+    () => (faceCents !== null && maturityDate ? { maturityDate, faceCents } : null),
+    [maturityDate, faceCents],
+  );
   const quoteRequest = useDebouncedOrderRequest(request);
   const quote = useQuote(quoteRequest);
+  useFocusFaceOnPrefill(prefillCount);
   const current = Boolean(quote.data) && !quote.isPlaceholderData && request === quoteRequest;
 
   function submit(event: FormEvent) {
@@ -158,7 +164,8 @@ export function OrderTicket() {
   const [faceText, setFaceText] = useState(formatDollarInput(DEFAULT_FACE_CENTS));
   const placeOrder = usePlaceOrder();
   const order = useOrder(placeOrder.data?.id ?? null);
-  useRefreshWhenSettled(order.data?.status);
+  useResetOnPrefill(useTicket().prefillCount, placeOrder.reset);
+  useRefreshWhenPendingClears();
 
   return (
     <aside

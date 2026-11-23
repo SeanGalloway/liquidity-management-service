@@ -1,6 +1,7 @@
 'use client';
 
 import 'client-only';
+import Link from 'next/link';
 import { formatDate } from '@client/lib/format';
 import type { SetupStatus } from '@client/types';
 
@@ -55,6 +56,14 @@ export function BackfillProgress({ yields }: { yields: SetupStatus['yields'] }) 
           <code className="font-mono text-[13px]">POST /api/v1/jobs/sync-yields</code> (job token)
           and reload this page.
         </p>
+      )}
+      {failed && (
+        <Link
+          href="/portfolio"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-accent hover:text-accent-hover"
+        >
+          Continue to portfolio without yield history →
+        </Link>
       )}
     </div>
   );

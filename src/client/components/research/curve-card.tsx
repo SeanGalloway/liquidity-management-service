@@ -9,7 +9,7 @@ import {
   type CompareKey,
   type TenorRow,
 } from '@client/lib/curve';
-import { addMonths, calculateTodayInNewYork } from '@client/lib/dates';
+import { addMonths, getTodayInNewYork } from '@client/lib/dates';
 import { formatDate } from '@client/lib/format';
 import { cn } from '@client/lib/utils';
 import { useCurve } from '@client/queries';
@@ -33,7 +33,7 @@ function CompareChips({
           aria-pressed={option.key === value}
           onClick={() => onChange(option.key)}
           className={cn(
-            'h-9 rounded-md border border-[#d5dae1] bg-surface px-2.5 text-[13px] font-medium pointer-coarse:h-11',
+            'h-9 rounded-md border border-control bg-surface px-2.5 text-[13px] font-medium pointer-coarse:h-11',
             'hover:border-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
             option.key === value && 'border-accent bg-accent-soft text-accent',
           )}
@@ -92,7 +92,7 @@ export function CurveCard({ curve, rows }: { curve: Curve; rows: TenorRow[] }) {
         <YieldCurveChart
           points={calculateCurvePoints(rows, compareData)}
           compareLabel={compareLabel}
-          onPick={(point) => prefillMaturity(addMonths(calculateTodayInNewYork(), point.months))}
+          onPick={(point) => prefillMaturity(addMonths(getTodayInNewYork(), point.months))}
         />
       </div>
     </section>

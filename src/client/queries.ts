@@ -1,5 +1,5 @@
 import 'client-only';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -23,7 +23,7 @@ import {
 } from './api';
 import type { CreateOrderRequest, SetupStatus } from './types';
 
-export const REFETCH_MS = 60_000;
+const REFETCH_MS = 60_000;
 const PENDING_POLL_MS = 1_000;
 
 export const queryKeys = {
@@ -40,7 +40,7 @@ export const queryKeys = {
   yieldHistory: (tenors: string[], from: string) => ['yield-history', tenors.join(','), from],
 };
 
-export function isBackfilling(status: SetupStatus | undefined) {
+function isBackfilling(status: SetupStatus | undefined) {
   const backfill = status?.yields.backfill;
   return Boolean(status?.initialized) && (backfill === 'idle' || backfill === 'running');
 }
@@ -162,4 +162,16 @@ export function useYieldHistory(tenors: string[], from: string) {
     queryFn: () => fetchYieldHistory(tenors, from),
     enabled: tenors.length > 0,
   });
+}
+
+export function useRefreshWhenPendingClears() {
+  const pendingCount = useBalance().data?.pendingOrders.count;
+  const refreshPortfolio = useRefreshPortfolio();
+  const previous = useRef(pendingCount);
+
+  useEffect(() => {
+    const dropped = (previous.current ?? 0) > (pendingCount ?? 0);
+    previous.current = pendingCount;
+    if (dropped) void refreshPortfolio();
+  }, [pendingCount, refreshPortfolio]);
 }

@@ -15,7 +15,7 @@ export function RatesStamp() {
 
   return (
     <span className="inline-flex items-center gap-2 text-[13px] text-muted">
-      <span className="size-2 rounded-full bg-[#137a4b]" aria-hidden="true" />
+      <span className="size-2 rounded-full bg-positive" aria-hidden="true" />
       Rates as of {formatDate(curve.asOf)} close · {formatSource(curve.source)}
     </span>
   );

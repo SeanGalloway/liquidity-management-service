@@ -13,7 +13,7 @@ import {
   TableRow,
 } from '@client/components/ui/table';
 import type { TenorRow } from '@client/lib/curve';
-import { addMonths, calculateTodayInNewYork } from '@client/lib/dates';
+import { addMonths, getTodayInNewYork } from '@client/lib/dates';
 import { formatBpsAsPercent } from '@client/lib/format';
 import { ChangeText } from './change-text';
 
@@ -24,7 +24,7 @@ function formatRange(row: TenorRow) {
 
 export function TenorTable({ rows }: { rows: TenorRow[] }) {
   const { prefillMaturity } = useTicket();
-  const today = calculateTodayInNewYork();
+  const today = getTodayInNewYork();
 
   return (
     <section aria-label="Rates by tenor" className="rounded-card border border-border bg-surface">
