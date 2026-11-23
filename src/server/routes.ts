@@ -23,7 +23,7 @@ export function createRoutes(container: Container) {
     .route('/timeline',  timelineRoutes())
     .route('/holdings',  holdingRoutes())
     .route('/quote',     quoteRoutes(container))
-    .route('/orders',    orderRoutes())
+    .route('/orders',    orderRoutes(container))
     .route('/tenors',    tenorRoutes(container))
     .route('/yields',    yieldRoutes(container))
     .route('/jobs',      jobRoutes(container));

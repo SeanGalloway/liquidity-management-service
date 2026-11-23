@@ -24,13 +24,37 @@ describe('api app', () => {
   });
 
   it('accepts job calls with the job token', async () => {
-    const response = await createTestApp().request('/api/v1/jobs/fill-orders', {
+    const response = await createTestApp().request('/api/v1/jobs/pay-cashflows', {
       method: 'POST',
       headers: { authorization: `Bearer ${TEST_JOB_TOKEN}` },
     });
 
     expect(response.status).toBe(501);
     expect(await response.json()).toMatchObject({ error: { code: 'NOT_IMPLEMENTED' } });
+  });
+
+  it('requires setup before order endpoints, including the bare collection path', async () => {
+    const response = await createTestApp([[]]).request('/api/v1/orders');
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: { code: 'NOT_INITIALIZED' } });
+  });
+
+  it('rejects an order cursor that is not an order id', async () => {
+    const response = await createTestApp([[{ id: 1 }]]).request('/api/v1/orders?cursor=nope');
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
+  });
+
+  it('runs the fill-orders job and reports an empty batch', async () => {
+    const response = await createTestApp([[]]).request('/api/v1/jobs/fill-orders', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${TEST_JOB_TOKEN}` },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ claimed: 0, executed: 0, rejected: 0, failed: 0 });
   });
 
   it('publishes an OpenAPI document covering every planned endpoint', async () => {

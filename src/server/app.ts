@@ -5,10 +5,19 @@ import { logger } from 'hono/logger';
 import { requestId } from 'hono/request-id';
 import type { Container } from './container';
 import { handleError, handleNotFound } from './middleware/error-handler';
+import { requireSetup } from './middleware/require-setup';
 import { createRouter } from './openapi';
 import { createRoutes } from './routes';
 
 export const API_BASE_PATH = '/api/v1';
+
+const SETUP_REQUIRED_PATHS = [
+  '/balance/*',
+  '/cashflows/*',
+  '/timeline/*',
+  '/holdings/*',
+  '/orders/*',
+];
 
 export function createApp(container: Container) {
   const app = createRouter().basePath(API_BASE_PATH);
@@ -16,6 +25,10 @@ export function createApp(container: Container) {
   app.use(requestId());
   app.use(logger());
   app.use('/jobs/*', bearerAuth({ token: container.config.jobToken }));
+
+  for (const path of SETUP_REQUIRED_PATHS) {
+    app.use(path, requireSetup(container.db));
+  }
 
   app.onError(handleError);
   app.notFound(handleNotFound);

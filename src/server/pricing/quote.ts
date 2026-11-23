@@ -35,11 +35,7 @@ type QuoteInput = {
   settleDate: IsoDate;
 };
 
-type PricedSecurity = {
-  cleanPer100: Decimal;
-  accruedPer100: Decimal;
-  cashflows: QuotedCashflow[];
-};
+type PricePer100 = { cleanPer100: Decimal; accruedPer100: Decimal };
 
 export function calculateQuote({ security, curve, faceCents, settleDate }: QuoteInput): Quote {
   const { yieldBps, interpolatedFrom } = interpolateYield(
@@ -48,17 +44,18 @@ export function calculateQuote({ security, curve, faceCents, settleDate }: Quote
     security.maturityDate,
   );
 
-  const priced =
+  const price =
     security.kind === 'bill'
-      ? priceBill(security, yieldBps, faceCents, settleDate)
-      : priceCouponSecurity(security, yieldBps, faceCents, settleDate);
+      ? priceBill(security, yieldBps, settleDate)
+      : priceCouponSecurity(security, yieldBps, settleDate);
 
-  const pricePer100 = priced.cleanPer100.toDecimalPlaces(PRICE_DECIMALS, Decimal.ROUND_HALF_UP);
+  const pricePer100 = roundPer100(price.cleanPer100);
   const cleanCents = toCents(pricePer100, faceCents);
-  const accruedPer100 = priced.accruedPer100.toDecimalPlaces(PRICE_DECIMALS, Decimal.ROUND_HALF_UP);
-  const accruedCents = toCents(accruedPer100, faceCents);
+  const accruedCents = toCents(roundPer100(price.accruedPer100), faceCents);
   const totalCents = cleanCents + accruedCents;
-  const cashflowTotal = priced.cashflows.reduce((sum, cashflow) => sum + cashflow.amountCents, 0);
+
+  const cashflows = calculateCashflows(security, faceCents, settleDate);
+  const cashflowTotal = cashflows.reduce((sum, cashflow) => sum + cashflow.amountCents, 0);
 
   return {
     security,
@@ -71,57 +68,62 @@ export function calculateQuote({ security, curve, faceCents, settleDate }: Quote
     accruedCents,
     totalCents,
     interestToMaturityCents: cashflowTotal - totalCents,
-    cashflows: priced.cashflows,
+    cashflows,
     pricedAsOf: curve.observedAt,
     source: curve.source,
   };
 }
 
-function priceBill(
+export function calculateCashflows(
   security: SecuritySpec,
-  yieldBps: Decimal,
   faceCents: number,
   settleDate: IsoDate,
-): PricedSecurity {
+): QuotedCashflow[] {
+  const principal: QuotedCashflow = {
+    date: rollForwardToBusinessDay(security.maturityDate),
+    kind: 'principal',
+    amountCents: faceCents,
+  };
+
+  if (security.kind === 'bill') return [principal];
+
+  const couponCents = toCents(requireCouponRate(security).div(200), faceCents);
+  const { couponDates } = calculateCouponSchedule(settleDate, security.maturityDate);
+
+  const coupons = couponDates.map((date) => ({
+    date: rollForwardToBusinessDay(date),
+    kind: 'coupon' as const,
+    amountCents: couponCents,
+  }));
+
+  return [...coupons, principal];
+}
+
+function priceBill(security: SecuritySpec, yieldBps: Decimal, settleDate: IsoDate): PricePer100 {
   return {
     cleanPer100: calculateBillPrice(yieldBps, settleDate, security.maturityDate),
     accruedPer100: new Decimal(0),
-    cashflows: [principalCashflow(security, faceCents)],
   };
 }
 
 function priceCouponSecurity(
   security: SecuritySpec,
   yieldBps: Decimal,
-  faceCents: number,
   settleDate: IsoDate,
-): PricedSecurity {
-  const couponRateBps = security.couponRateBps;
-  if (!couponRateBps) throw new Error(`A ${security.kind} needs a coupon rate`);
-
+): PricePer100 {
   const schedule = calculateCouponSchedule(settleDate, security.maturityDate);
-  const price = calculateCouponPrice({ couponRateBps, yieldBps, schedule, settleDate });
-  const couponCents = toCents(couponRateBps.div(200), faceCents);
+  const couponRateBps = requireCouponRate(security);
 
-  const coupons = schedule.couponDates.map((date) => ({
-    date: rollForwardToBusinessDay(date),
-    kind: 'coupon' as const,
-    amountCents: couponCents,
-  }));
-
-  return {
-    cleanPer100: price.cleanPer100,
-    accruedPer100: price.accruedPer100,
-    cashflows: [...coupons, principalCashflow(security, faceCents)],
-  };
+  return calculateCouponPrice({ couponRateBps, yieldBps, schedule, settleDate });
 }
 
-function principalCashflow(security: SecuritySpec, faceCents: number): QuotedCashflow {
-  return {
-    date: rollForwardToBusinessDay(security.maturityDate),
-    kind: 'principal',
-    amountCents: faceCents,
-  };
+function requireCouponRate(security: SecuritySpec): Decimal {
+  if (!security.couponRateBps) throw new Error(`A ${security.kind} needs a coupon rate`);
+  return security.couponRateBps;
+}
+
+function roundPer100(per100: Decimal): Decimal {
+  return per100.toDecimalPlaces(PRICE_DECIMALS, Decimal.ROUND_HALF_UP);
 }
 
 function toCents(per100: Decimal, faceCents: number): number {

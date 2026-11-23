@@ -589,7 +589,7 @@ Collected as we go; the README gets this list.
 - Auth (Hono middleware slot already exists), then multi-user and multi-institution:
   `institution_id` on balance/ledger/holdings/orders, per-user roles (trader vs. viewer, maker/checker approvals).
 - Sells / early liquidation at market; realized vs. unrealized P&L.
-- Real securities: resolve a requested maturity to an actual CUSIP (coupon, dated date, price ≠ par)
+- Real securities (and find-or-insert `securities` by CUSIP instead of inserting per fill): resolve a requested maturity to an actual CUSIP (coupon, dated date, price ≠ par)
   inside `security-resolver.ts`; also snap maturities to real patterns (notes 15th/month-end, bills
   weekly) and price off a bootstrapped zero (spot) curve instead of a single par yield.
   via Treasury's securities data.
