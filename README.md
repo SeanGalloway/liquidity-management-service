@@ -4,8 +4,6 @@ A prototype Treasury desk for a single institution. It pulls the U.S. Treasury p
 lets you buy Treasuries by maturity date and face amount. It tracks holdings, orders, cash and
 projected cashflows until maturity.
 
-Design notes: [docs/PLAN.md](docs/PLAN.md) · build log: [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md)
-
 ## Getting started
 
 Requires Node 22, pnpm 11 and Docker.
@@ -100,7 +98,7 @@ scheduled_cashflows  id, holding_id, pay_date, kind (coupon|principal), amount_c
 job_runs             id, job, status (running|succeeded|failed), started_at, result, error
 ```
 
-Full DDL and invariants are in [docs/PLAN.md](docs/PLAN.md#database-schema).
+Full DDL and invariants are in [db/SCHEMA.md](db/SCHEMA.md).
 
 </details>
 
@@ -123,10 +121,14 @@ Full DDL and invariants are in [docs/PLAN.md](docs/PLAN.md#database-schema).
 - Yields are the daily treasury.gov par curve. Orders fill at the latest stored close, not live prices.
 - Execution is a simulated in-process engine with a delay of 2 s or more. There is no broker connection.
 - Funds are checked at fill time, not reserved when the order is placed.
+- Use API polling rather than SSE for live data
 
 ## Future enhancements
 
-- **Auth:** users, multiple accounts and roles
-- **Sell orders:** mark-to-market and realized P&L
-- **Real broker clients:** swap the execute-order engine for a broker or FIX adapter, with real CUSIPs
+- **Auth:** users, multiple accounts and roles. Login flows, session management/validation middleware. `users` and `institutions` tables, with queries predicated by institution id and user access.
+- **Sell orders:** Based on market pricing. Most useful after real passage of time.
+- **Real broker clients:** swap the `execute-order.ts` engine for a broker or FIX adapter, with real CUSIPs
 - **Real-time yield data:** an intraday vendor feed behind the existing `YieldsClient` interface
+- **Deposit/Withdrawal prediction model** based on historical depositor behavior. Informs portfolio decisions and minimum cash needed on a particular day.
+- **Integration tests, CI**
+
