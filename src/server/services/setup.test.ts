@@ -26,7 +26,12 @@ describe('setup service', () => {
       [{ earliest: null, latest: null, rows: 0 }],
     ]);
 
-    const setup = createSetupService({ db, balance: createBalanceService(), yields, jobRuns });
+    const setup = createSetupService({
+      db,
+      balance: createBalanceService({ db }),
+      yields,
+      jobRuns,
+    });
     const status = await setup.initializeDesk(15_000_000_00);
 
     expect(sql().slice(0, 6)).toEqual([
@@ -48,7 +53,12 @@ describe('setup service', () => {
     const jobRuns = createJobRunsStub();
     const { db, sql } = createRecordingDb([[]]);
 
-    const setup = createSetupService({ db, balance: createBalanceService(), yields, jobRuns });
+    const setup = createSetupService({
+      db,
+      balance: createBalanceService({ db }),
+      yields,
+      jobRuns,
+    });
 
     await expect(setup.initializeDesk(100_00)).rejects.toMatchObject({
       code: 'ALREADY_INITIALIZED',

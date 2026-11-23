@@ -1,4 +1,5 @@
 import 'server-only';
+import { DomainError } from './errors';
 import type { Clock, IsoDate } from './types';
 
 const MARKET_TIME_ZONE = 'America/New_York';
@@ -28,10 +29,17 @@ export function toNewYorkDate(instant: Date): IsoDate {
 }
 
 export function toNewYorkInstant(date: IsoDate, time: string): Date {
-  const noonUtc = new Date(`${date}T12:00:00Z`);
-  const offset = newYorkOffsetFormat.format(noonUtc).split('GMT')[1] ?? '-05:00';
+  const wallClockAsUtc = Date.parse(`${date}T${time}Z`);
+  const firstGuess = wallClockAsUtc - newYorkOffsetMs(wallClockAsUtc);
 
-  return new Date(`${date}T${time}${offset}`);
+  return new Date(wallClockAsUtc - newYorkOffsetMs(firstGuess));
+}
+
+function newYorkOffsetMs(instantMs: number): number {
+  const offset = newYorkOffsetFormat.format(instantMs).split('GMT')[1] || '+00:00';
+  const [hours = 0, minutes = 0] = offset.split(':').map(Number);
+
+  return (hours * 60 + Math.sign(hours) * minutes) * 60_000;
 }
 
 export function addDays(date: IsoDate, days: number): IsoDate {
@@ -73,4 +81,10 @@ export function isEndOfMonth(date: IsoDate): boolean {
 
 export function toIsoDate(year: number, month: number, day: number): IsoDate {
   return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+}
+
+export function rejectInvertedRange(from: IsoDate | undefined, to: IsoDate | undefined) {
+  if (from && to && from > to) {
+    throw new DomainError('VALIDATION_FAILED', `from (${from}) is after to (${to})`);
+  }
 }

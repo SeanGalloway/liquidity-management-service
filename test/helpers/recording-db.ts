@@ -8,6 +8,7 @@ import {
   type DatabaseConnection,
   type Driver,
   type QueryResult,
+  type TransactionSettings,
 } from 'kysely';
 import type { DB } from '@server/db/schema';
 
@@ -37,10 +38,15 @@ export function createRecordingDb(scriptedResults: ScriptedResult[] = []) {
     queries.push({ sql, parameters: [] });
   };
 
+  const recordBegin = async (_connection: DatabaseConnection, settings: TransactionSettings) => {
+    const isolation = settings.isolationLevel ? ` isolation level ${settings.isolationLevel}` : '';
+    queries.push({ sql: `begin${isolation}`, parameters: [] });
+  };
+
   const driver: Driver = {
     init: async () => {},
     acquireConnection: async () => connection,
-    beginTransaction: record('begin'),
+    beginTransaction: recordBegin,
     commitTransaction: record('commit'),
     rollbackTransaction: record('rollback'),
     releaseConnection: async () => {},

@@ -11,7 +11,7 @@ import {
   type CurveObservation,
   type YieldCoverage,
 } from '../db/yields';
-import { addDays, addMonths } from '../domain/dates';
+import { addDays, addMonths, rejectInvertedRange } from '../domain/dates';
 import { DomainError } from '../domain/errors';
 import type { Clock, Curve, CurvePointValue, DateRange, IsoDate } from '../domain/types';
 import { rollForwardToBusinessDay } from '../pricing/calendar';
@@ -81,7 +81,7 @@ export function createYieldsService({ db, clock, yieldsClient }: Dependencies) {
 
     const to = range.to ?? clock.today();
     const from = range.from ?? addMonths(to, -HISTORY_DEFAULT_MONTHS);
-    if (from > to) throw new DomainError('VALIDATION_FAILED', `from (${from}) is after to (${to})`);
+    rejectInvertedRange(from, to);
 
     const observations = await findYieldHistory(tenorCodes, { from, to }, db);
 

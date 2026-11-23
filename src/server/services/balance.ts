@@ -1,18 +1,29 @@
 import 'server-only';
 import type { Transaction } from 'kysely';
-import { findBalanceForUpdate, updateBalanceAmount } from '../db/balance';
-import { insertLedgerEntry, type LedgerEntry } from '../db/ledger';
+import {
+  findBalance,
+  findBalanceForUpdate,
+  updateBalanceAmount,
+  type Balance,
+} from '../db/balance';
+import type { Database } from '../db/client';
+import { findLedgerEntries, insertLedgerEntry, type LedgerEntry } from '../db/ledger';
+import { findPendingOrderTotals, type PendingOrderTotals } from '../db/orders';
 import type { DB } from '../db/schema';
+import { addDays, rejectInvertedRange, toNewYorkInstant } from '../domain/dates';
 import { DomainError } from '../domain/errors';
+import type { DateRange, LedgerReason } from '../domain/types';
 
 export type CashMovement = {
-  reason: 'deposit' | 'buy' | 'coupon' | 'principal';
+  reason: LedgerReason;
   amountCents: number;
   orderId?: string;
   cashflowId?: string;
 };
 
-export function createBalanceService() {
+export type BalanceSummary = { balance: Balance; pendingOrders: PendingOrderTotals };
+
+export function createBalanceService({ db }: { db: Database }) {
   async function postLedgerEntry(
     movement: CashMovement,
     trx: Transaction<DB>,
@@ -33,7 +44,37 @@ export function createBalanceService() {
     return entry;
   }
 
-  return { postLedgerEntry };
+  function getBalance(): Promise<BalanceSummary> {
+    return db
+      .transaction()
+      .setIsolationLevel('repeatable read')
+      .execute(async (trx) => {
+        const balance = await findBalance(trx);
+        if (!balance) throw new DomainError('NOT_INITIALIZED', 'Run setup first');
+
+        const pendingOrders = await findPendingOrderTotals(trx);
+
+        return { balance, pendingOrders };
+      });
+  }
+
+  async function listBalanceHistory(range: Partial<DateRange>): Promise<LedgerEntry[]> {
+    rejectInvertedRange(range.from, range.to);
+
+    return findLedgerEntries(
+      {
+        from: range.from ? startOfMarketDay(range.from) : undefined,
+        before: range.to ? startOfMarketDay(addDays(range.to, 1)) : undefined,
+      },
+      db,
+    );
+  }
+
+  return { postLedgerEntry, getBalance, listBalanceHistory };
 }
 
 export type BalanceService = ReturnType<typeof createBalanceService>;
+
+function startOfMarketDay(date: string): Date {
+  return toNewYorkInstant(date, '00:00:00');
+}

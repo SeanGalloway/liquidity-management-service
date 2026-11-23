@@ -391,6 +391,11 @@ close, and `/timeline` returns actual + projected series.
 20. `executeOrder` maps `NO_MARKET_DATA` → rejection `NO_MARKET_DATA` and a maturity that became
     invalid while pending → `MATURITY_NO_LONGER_VALID`; any other error propagates so the fill
     transaction rolls back and the order is marked `failed`.
+21. `HoldingWithSecurity` is a **flat** composite (`Holding & SecurityTerms & { cashflowTotalCents }`):
+    one join plus a scalar subquery, no JSON nesting in SQL. The handler nests `security` for the contract.
+22. `createBalanceService` now takes `{ db }` (reads added). History ranges are New York calendar days,
+    inclusive of `to`, converted to instants in the service.
+23. `toCashflowDto` lives in `handlers/cashflows.ts` and is reused by the holding detail.
 
 ## Changes from PR review (Vertical 1)
 
@@ -451,3 +456,18 @@ close, and `/timeline` returns actual + projected series.
 - Round 3: the funds pre-check reads the balance without locking (the debit's locked read decides),
   so concurrent fills don't serialize on the balance row during execution; a failure that another
   worker already settled counts as `skipped`, not `failed`; a stalled batch still counts its claim.
+
+## Changes from PR review (Vertical 4)
+
+- `pendingOrders` adds `quotedTotalCents` (cash the pending orders are expected to take) beside
+  `faceCents`; balance and pending totals are read in one `repeatable read` snapshot.
+- Ledger history rejects `from > to`; paging is Future work (no default window, so existing callers
+  still get the full ledger).
+- `kind`/`status`/`reason` are narrowed in the holdings, ledger and cashflow repositories (no DTO
+  casts); the cashflow-total subquery uses the typed builder; `SecurityTerms` inlined.
+- Round 2: shared `rejectInvertedRange` in `domain/dates` (yields + balance, and cashflows next);
+  narrowing types declared once and reused for entity + `$narrowType`; `SecurityKind` and the
+  ledger reason derived from the contract; 400s documented on history and holdings list.
+- Round 3: `toNewYorkInstant` resolves the UTC offset at the target wall-clock time (midnight on
+  DST changeover days was off by an hour); the recording db records isolation levels; holdings sort
+  ends on `id`; `GET /balance` mapping tested.

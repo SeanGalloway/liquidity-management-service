@@ -57,6 +57,86 @@ describe('api app', () => {
     expect(await response.json()).toEqual({ claimed: 0, executed: 0, rejected: 0, failed: 0 });
   });
 
+  it('maps holdings to the contract with a nested security and interest to maturity', async () => {
+    const holdingRow = {
+      id: 'holding-1',
+      orderId: 'order-1',
+      securityId: 'security-1',
+      faceCents: 100_000_000,
+      cleanCostCents: 99_997_253,
+      accruedPaidCents: 2_013_499,
+      purchaseYieldBps: '458.1',
+      purchasedAt: new Date('2026-11-22T23:09:42Z'),
+      status: 'active',
+      maturedAt: null,
+      kind: 'note',
+      cusip: null,
+      issueDate: '2026-06-15',
+      maturityDate: '2028-06-15',
+      couponRateBps: '457.727',
+      synthetic: true,
+      cashflowTotalCents: 109_154_540,
+    };
+    const app = createTestApp([[{ id: 1 }], [holdingRow]]);
+
+    const response = await app.request('/api/v1/holdings');
+    const [holding] = (await response.json()).data;
+
+    expect(response.status).toBe(200);
+    expect(holding.security).toEqual({
+      id: 'security-1',
+      cusip: null,
+      kind: 'note',
+      issueDate: '2026-06-15',
+      maturityDate: '2028-06-15',
+      couponRateBps: 457.727,
+      synthetic: true,
+    });
+    expect(holding.purchaseYieldBps).toBe(458.1);
+    expect(holding.totalCostCents).toBe(102_010_752);
+    expect(holding.interestToMaturityCents).toBe(109_154_540 - 102_010_752);
+  });
+
+  it('maps the balance with pending exposure to the contract', async () => {
+    const updatedAt = new Date('2026-11-22T23:09:42Z');
+    const app = createTestApp([
+      [{ id: 1 }],
+      [{ id: 1, amountCents: 1_323_996_362, updatedAt }],
+      [{ count: 1, faceCents: 75_000_000, quotedTotalCents: 73_992_886 }],
+    ]);
+
+    const response = await app.request('/api/v1/balance');
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      amountCents: 1_323_996_362,
+      updatedAt: '2026-11-22T23:09:42.000Z',
+      pendingOrders: { count: 1, faceCents: 75_000_000, quotedTotalCents: 73_992_886 },
+    });
+  });
+
+  it('labels each ledger entry with what caused it', async () => {
+    const entry = (overrides: object) => ({
+      id: 'entry',
+      occurredAt: new Date('2026-11-22T23:09:42Z'),
+      amountCents: -1,
+      balanceAfterCents: 0,
+      reason: 'buy',
+      orderId: null,
+      cashflowId: null,
+      ...overrides,
+    });
+    const app = createTestApp([
+      [{ id: 1 }],
+      [entry({ reason: 'deposit', amountCents: 1 }), entry({ orderId: 'order-1' })],
+    ]);
+
+    const response = await app.request('/api/v1/balance/history');
+    const refs = (await response.json()).data.map((row: { ref: unknown }) => row.ref);
+
+    expect(refs).toEqual([null, { type: 'order', id: 'order-1' }]);
+  });
+
   it('publishes an OpenAPI document covering every planned endpoint', async () => {
     const response = await createTestApp().request('/api/v1/openapi.json');
     const doc = await response.json();
