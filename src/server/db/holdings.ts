@@ -52,7 +52,7 @@ export function findHoldingWithSecurity(
 export function markHoldingMatured(id: string, trx: Transaction<DB>): Promise<Holding> {
   return trx
     .updateTable('holdings')
-    .set({ status: 'matured', maturedAt: sql`now()` })
+    .set({ status: 'matured', maturedAt: sql`clock_timestamp()` })
     .where('id', '=', id)
     .returningAll()
     .$narrowType<{ status: HoldingStatus }>()

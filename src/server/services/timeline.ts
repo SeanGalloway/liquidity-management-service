@@ -35,7 +35,8 @@ export function createTimelineService({ db, clock }: { db: Database; clock: Cloc
         const balance = await findBalance(trx);
         if (!balance) throw new DomainError('NOT_INITIALIZED', 'Run setup first');
 
-        const actual = await findDailyClosingBalances(trx);
+        const closes = await findDailyClosingBalances(trx);
+        const actual = endAtToday(closes, today, balance.amountCents);
         const scheduled = await findCashflows({ status: 'scheduled' }, trx);
 
         const lastMaturity = calculateLastMaturity(scheduled);
@@ -79,11 +80,14 @@ export function calculateProjection(
 }
 
 function calculateLastMaturity(cashflows: ScheduledCashflow[]): IsoDate | null {
-  const principalDates = cashflows
-    .filter((cashflow) => cashflow.kind === 'principal')
-    .map((cashflow) => cashflow.payDate);
+  return cashflows.findLast((cashflow) => cashflow.kind === 'principal')?.payDate ?? null;
+}
 
-  return principalDates.sort().at(-1) ?? null;
+function endAtToday(closes: DailyBalance[], today: IsoDate, balanceCents: number): DailyBalance[] {
+  const last = closes[closes.length - 1];
+  if (last?.date === today) return closes;
+
+  return [...closes, { date: today, balanceCents }];
 }
 
 function toEvent(cashflow: ScheduledCashflow, today: IsoDate): TimelineEvent {

@@ -24,13 +24,19 @@ describe('api app', () => {
   });
 
   it('runs the pay-cashflows job and reports what it paid', async () => {
+    const lockAcquired = [{ acquired: true }];
+    const noStaleRuns: never[] = [];
+    const runRecorded = [{ id: 'run-1' }];
+    const noDueCashflows: never[] = [];
+    const runFinished = [{ id: 'run-1' }];
+    const lockReleased: never[] = [];
     const app = createTestApp([
-      [{ acquired: true }],
-      [],
-      [{ id: 'run-1' }],
-      [],
-      [{ id: 'run-1' }],
-      [],
+      lockAcquired,
+      noStaleRuns,
+      runRecorded,
+      noDueCashflows,
+      runFinished,
+      lockReleased,
     ]);
 
     const response = await app.request('/api/v1/jobs/pay-cashflows', {

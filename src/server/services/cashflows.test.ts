@@ -56,7 +56,7 @@ describe('payNextDueCashflow', () => {
       'select * from "balance"',
       'insert into "ledger_entries"',
       'update "balance" set "amount_cents" = $1, "updated_at" = now()',
-      'update "scheduled_cashflows" set "status" = $1, "paid_at" = now()',
+      'update "scheduled_cashflows" set "status" = $1, "paid_at" = clock_timestamp()',
       'commit',
     ]);
     expect(queries[1]?.parameters).toEqual(['scheduled', '2026-12-15', 1]);
@@ -69,7 +69,7 @@ describe('payNextDueCashflow', () => {
     await service.payNextDueCashflow();
 
     expect(sql().at(-2)).toBe(
-      'update "holdings" set "status" = $1, "matured_at" = now() where "id" = $2 returning *',
+      'update "holdings" set "status" = $1, "matured_at" = clock_timestamp() where "id" = $2 returning *',
     );
   });
 
@@ -78,6 +78,16 @@ describe('payNextDueCashflow', () => {
 
     expect(await service.payNextDueCashflow()).toBeUndefined();
     expect(sql()).toHaveLength(3);
+  });
+});
+
+describe('payNextDueCashflow failures', () => {
+  it('names the cashflow that could not be paid', async () => {
+    const { service } = createService([[COUPON], new Error('constraint violated')]);
+
+    await expect(service.payNextDueCashflow()).rejects.toThrow(
+      'Cashflow cashflow-1 could not be paid',
+    );
   });
 });
 

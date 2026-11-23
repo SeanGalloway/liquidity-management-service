@@ -113,7 +113,10 @@ export const Timeline = z
   .object({
     today: IsoDate,
     lastMaturity: IsoDate.nullable(),
-    actual: z.array(BalancePoint),
+    actual: z.array(BalancePoint).meta({
+      description:
+        'Step series: each point is the closing balance until the next point; ends today',
+    }),
     projected: z.array(BalancePoint),
     events: z.array(
       z.object({ date: IsoDate, kind: CashflowKind, holdingId: Uuid, amountCents: Cents }),

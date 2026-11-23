@@ -21,7 +21,10 @@ export function createCashflowsService({ db, clock, balance }: Dependencies) {
   async function payDueCashflows(): Promise<PaymentSummary> {
     const summary: PaymentSummary = { paid: 0, totalCents: 0 };
 
-    for (let paid = await payNextDueCashflow(); paid; paid = await payNextDueCashflow()) {
+    while (true) {
+      const paid = await payNextDueCashflow();
+      if (!paid) break;
+
       summary.paid += 1;
       summary.totalCents += paid.amountCents;
     }
@@ -29,21 +32,29 @@ export function createCashflowsService({ db, clock, balance }: Dependencies) {
     return summary;
   }
 
-  function payNextDueCashflow(): Promise<ScheduledCashflow | undefined> {
-    return withTransaction(db, async (trx) => {
-      const cashflow = await findNextDueCashflowForUpdate(clock.today(), trx);
-      if (!cashflow) return undefined;
+  async function payNextDueCashflow(): Promise<ScheduledCashflow | undefined> {
+    let claimedId: string | undefined;
 
-      await balance.postLedgerEntry(
-        { reason: cashflow.kind, amountCents: cashflow.amountCents, cashflowId: cashflow.id },
-        trx,
-      );
+    try {
+      return await withTransaction(db, async (trx) => {
+        const cashflow = await findNextDueCashflowForUpdate(clock.today(), trx);
+        if (!cashflow) return undefined;
 
-      const paid = await markCashflowPaid(cashflow.id, trx);
-      if (cashflow.kind === 'principal') await markHoldingMatured(cashflow.holdingId, trx);
+        claimedId = cashflow.id;
+        await balance.postLedgerEntry(
+          { reason: cashflow.kind, amountCents: cashflow.amountCents, cashflowId: cashflow.id },
+          trx,
+        );
 
-      return paid;
-    });
+        const paid = await markCashflowPaid(cashflow.id, trx);
+        if (cashflow.kind === 'principal') await markHoldingMatured(cashflow.holdingId, trx);
+
+        return paid;
+      });
+    } catch (error) {
+      if (!claimedId) throw error;
+      throw new Error(`Cashflow ${claimedId} could not be paid`, { cause: error });
+    }
   }
 
   async function listCashflows(filter: CashflowsFilter): Promise<ScheduledCashflow[]> {

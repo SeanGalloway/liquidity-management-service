@@ -39,7 +39,12 @@ export function findCashflowsForHolding(
 }
 
 export function findCashflows(filter: CashflowsFilter, ex: Executor): Promise<ScheduledCashflow[]> {
-  let query = ex.selectFrom('scheduledCashflows').selectAll().orderBy('payDate').orderBy('kind');
+  let query = ex
+    .selectFrom('scheduledCashflows')
+    .selectAll()
+    .orderBy('payDate')
+    .orderBy('kind')
+    .orderBy('id');
 
   if (filter.status) query = query.where('status', '=', filter.status);
   if (filter.from) query = query.where('payDate', '>=', filter.from);
@@ -59,6 +64,7 @@ export function findNextDueCashflowForUpdate(
     .where('payDate', '<=', today)
     .orderBy('payDate')
     .orderBy('kind')
+    .orderBy('id')
     .limit(1)
     .forUpdate()
     .skipLocked()
@@ -69,7 +75,7 @@ export function findNextDueCashflowForUpdate(
 export function markCashflowPaid(id: string, trx: Transaction<DB>): Promise<ScheduledCashflow> {
   return trx
     .updateTable('scheduledCashflows')
-    .set({ status: 'paid', paidAt: sql`now()` })
+    .set({ status: 'paid', paidAt: sql`clock_timestamp()` })
     .where('id', '=', id)
     .returningAll()
     .$narrowType<CashflowNarrowing>()

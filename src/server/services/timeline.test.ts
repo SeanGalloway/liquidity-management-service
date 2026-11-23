@@ -82,6 +82,21 @@ describe('getTimeline', () => {
     expect(timeline.projected.at(-1)).toEqual({ date: '2027-12-31', balanceCents: 600 });
   });
 
+  it('ends the actual series today with the current balance when nothing moved today', async () => {
+    const { db } = createRecordingDb([
+      [{ id: 1, amountCents: 900 }],
+      [{ date: '2026-11-20', balanceCents: 900 }],
+      [],
+    ]);
+
+    const timeline = await createTimelineService({ db, clock: SUNDAY }).getTimeline();
+
+    expect(timeline.actual).toEqual([
+      { date: '2026-11-20', balanceCents: 900 },
+      { date: '2026-11-22', balanceCents: 900 },
+    ]);
+  });
+
   it('rejects a horizon before today without querying', async () => {
     const { db, queries } = createRecordingDb();
 

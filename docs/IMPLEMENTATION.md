@@ -487,3 +487,6 @@ close, and `/timeline` returns actual + projected series.
 - `payDueCashflows` loops until nothing is due (no batch cap) so a startup run fully catches up.
 - `to < today` is rejected; the projection extends to the horizon; flat `CashflowsFilter`; 400s
   documented on `/cashflows` and `/timeline`. Declined: paging `/cashflows` (Future work).
+- Round 2: `actual` is a step series that always ends today at the current balance (documented in
+  the contract); `paid_at`/`matured_at` use `clock_timestamp()` like the ledger; cashflow ordering
+  ends on `id`; a payment failure names its cashflow; market time zone passed to SQL as a parameter.

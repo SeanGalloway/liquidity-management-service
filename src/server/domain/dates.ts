@@ -2,7 +2,7 @@ import 'server-only';
 import { DomainError } from './errors';
 import type { Clock, IsoDate } from './types';
 
-const MARKET_TIME_ZONE = 'America/New_York';
+export const MARKET_TIME_ZONE = 'America/New_York';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const newYorkDateFormat = new Intl.DateTimeFormat('en-CA', {

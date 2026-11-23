@@ -1,5 +1,6 @@
 import 'server-only';
 import { sql, type Insertable, type Selectable } from 'kysely';
+import { MARKET_TIME_ZONE } from '../domain/dates';
 import type { IsoDate, LedgerReason } from '../domain/types';
 import type { Executor } from './client';
 import type { LedgerEntries } from './schema';
@@ -33,7 +34,7 @@ export async function findDailyClosingBalances(ex: Executor): Promise<DailyBalan
   const { rows } = await sql<DailyBalance>`
     select distinct on (day) day as "date", balance_after_cents as "balanceCents"
     from (
-      select (occurred_at at time zone 'America/New_York')::date as day, occurred_at, id,
+      select (occurred_at at time zone ${MARKET_TIME_ZONE})::date as day, occurred_at, id,
         balance_after_cents
       from ledger_entries
     ) entries
