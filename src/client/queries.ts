@@ -1,4 +1,5 @@
 import 'client-only';
+import { useCallback } from 'react';
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -20,7 +21,7 @@ import {
   postOrder,
   postSetup,
 } from './api';
-import type { CreateOrderRequest } from './types';
+import type { CreateOrderRequest, SetupStatus } from './types';
 
 export const REFETCH_MS = 60_000;
 const PENDING_POLL_MS = 1_000;
@@ -38,11 +39,16 @@ export const queryKeys = {
   yieldHistory: (tenors: string[]) => ['yield-history', tenors.join(',')],
 };
 
-export function useSetupStatus(poll: boolean) {
+export function isBackfilling(status: SetupStatus | undefined) {
+  const backfill = status?.yields.backfill;
+  return Boolean(status?.initialized) && (backfill === 'idle' || backfill === 'running');
+}
+
+export function useSetupStatus() {
   return useQuery({
     queryKey: queryKeys.setup,
     queryFn: fetchSetupStatus,
-    refetchInterval: poll ? PENDING_POLL_MS : false,
+    refetchInterval: (query) => (isBackfilling(query.state.data) ? PENDING_POLL_MS : false),
   });
 }
 
@@ -108,12 +114,15 @@ export function usePlaceOrder() {
 
 export function useRefreshPortfolio() {
   const queryClient = useQueryClient();
-  return () =>
-    Promise.all(
-      [queryKeys.balance, queryKeys.holdings, queryKeys.orders, ['timeline']].map((queryKey) =>
-        queryClient.invalidateQueries({ queryKey }),
+  return useCallback(
+    () =>
+      Promise.all(
+        [queryKeys.balance, queryKeys.holdings, queryKeys.orders, ['timeline']].map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
       ),
-    );
+    [queryClient],
+  );
 }
 
 export function useQuote(request: CreateOrderRequest | null) {
