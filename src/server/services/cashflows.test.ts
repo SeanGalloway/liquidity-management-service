@@ -37,7 +37,7 @@ function createService(scripted: Parameters<typeof createRecordingDb>[0]) {
 
 const PAYMENT_SCRIPT = (cashflow: typeof COUPON) => [
   [cashflow],
-  [{ id: 1, amountCents: 1_000_000_00 }],
+  [{ id: 1, amountCents: 100_000_000 }],
   [{ id: 'entry-1' }],
   [{ id: 1 }],
   [{ ...cashflow, status: 'paid' }],
@@ -60,7 +60,7 @@ describe('payNextDueCashflow', () => {
       'commit',
     ]);
     expect(queries[1]?.parameters).toEqual(['scheduled', '2026-12-15', 1]);
-    expect(queries[3]?.parameters).toEqual(['coupon', 2_288_635, 'cashflow-1', 1_022_886_35]);
+    expect(queries[3]?.parameters).toEqual(['coupon', 2_288_635, 'cashflow-1', 102_288_635]);
   });
 
   it('also marks the holding matured when the principal is paid', async () => {

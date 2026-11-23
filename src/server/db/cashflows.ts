@@ -1,6 +1,6 @@
 import 'server-only';
 import { sql, type Insertable, type Selectable, type Transaction } from 'kysely';
-import type { CashflowKind, CashflowStatus, DateRange, IsoDate } from '../domain/types';
+import type { CashflowKind, CashflowStatus, IsoDate } from '../domain/types';
 import type { Executor } from './client';
 import type { DB, ScheduledCashflows } from './schema';
 
@@ -10,7 +10,7 @@ export type ScheduledCashflow = Omit<Selectable<ScheduledCashflows>, keyof Cashf
   CashflowNarrowing;
 export type NewScheduledCashflow = Insertable<ScheduledCashflows>;
 
-export type CashflowsFilter = { status?: CashflowStatus; range?: Partial<DateRange> };
+export type CashflowsFilter = { status?: CashflowStatus; from?: IsoDate; to?: IsoDate };
 
 export function insertScheduledCashflows(
   cashflows: NewScheduledCashflow[],
@@ -42,8 +42,8 @@ export function findCashflows(filter: CashflowsFilter, ex: Executor): Promise<Sc
   let query = ex.selectFrom('scheduledCashflows').selectAll().orderBy('payDate').orderBy('kind');
 
   if (filter.status) query = query.where('status', '=', filter.status);
-  if (filter.range?.from) query = query.where('payDate', '>=', filter.range.from);
-  if (filter.range?.to) query = query.where('payDate', '<=', filter.range.to);
+  if (filter.from) query = query.where('payDate', '>=', filter.from);
+  if (filter.to) query = query.where('payDate', '<=', filter.to);
 
   return query.$narrowType<CashflowNarrowing>().execute();
 }

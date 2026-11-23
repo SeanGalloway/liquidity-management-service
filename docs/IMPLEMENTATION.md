@@ -477,3 +477,13 @@ close, and `/timeline` returns actual + projected series.
 - Round 3: `toNewYorkInstant` resolves the UTC offset at the target wall-clock time (midnight on
   DST changeover days was off by an hour); the recording db records isolation levels; holdings sort
   ends on `id`; `GET /balance` mapping tested.
+
+## Changes from PR review (Vertical 5)
+
+- `getTimeline` reads balance, daily closes and scheduled cashflows in one `repeatable read`
+  snapshot; daily closes come from SQL (`distinct on` the New York day) instead of loading the ledger.
+- Migration `0003`: `ledger_entries.occurred_at` defaults to `clock_timestamp()` (taken after the
+  balance lock at insert), so entry order matches balance order under concurrent writers.
+- `payDueCashflows` loops until nothing is due (no batch cap) so a startup run fully catches up.
+- `to < today` is rejected; the projection extends to the horizon; flat `CashflowsFilter`; 400s
+  documented on `/cashflows` and `/timeline`. Declined: paging `/cashflows` (Future work).

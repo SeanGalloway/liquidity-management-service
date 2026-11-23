@@ -13,14 +13,14 @@ const listCashflows = createRoute({
   request: { query: CashflowQuery },
   responses: {
     200: jsonBody(CashflowList, 'Cashflows by date'),
+    400: errorBody('VALIDATION_FAILED'),
     409: errorBody('NOT_INITIALIZED'),
   },
 });
 
 export function cashflowRoutes({ cashflows }: Container) {
   return createRouter().openapi(listCashflows, async (c) => {
-    const { status, from, to } = c.req.valid('query');
-    const rows = await cashflows.listCashflows({ status, range: { from, to } });
+    const rows = await cashflows.listCashflows(c.req.valid('query'));
 
     return c.json({ data: rows.map(toCashflowDto) }, 200);
   });

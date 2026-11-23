@@ -2,12 +2,9 @@ import 'server-only';
 import { findBalance } from '../db/balance';
 import { findCashflows, type ScheduledCashflow } from '../db/cashflows';
 import type { Database } from '../db/client';
-import { findLedgerEntries, type LedgerEntry } from '../db/ledger';
-import { toNewYorkDate } from '../domain/dates';
+import { findDailyClosingBalances, type DailyBalance } from '../db/ledger';
 import { DomainError } from '../domain/errors';
 import type { CashflowKind, Clock, IsoDate } from '../domain/types';
-
-export type BalancePoint = { date: IsoDate; balanceCents: number };
 
 export type TimelineEvent = {
   date: IsoDate;
@@ -19,34 +16,38 @@ export type TimelineEvent = {
 export type Timeline = {
   today: IsoDate;
   lastMaturity: IsoDate | null;
-  actual: BalancePoint[];
-  projected: BalancePoint[];
+  actual: DailyBalance[];
+  projected: DailyBalance[];
   events: TimelineEvent[];
 };
 
 export function createTimelineService({ db, clock }: { db: Database; clock: Clock }) {
   async function getTimeline(to?: IsoDate): Promise<Timeline> {
     const today = clock.today();
+    if (to && to < today) {
+      throw new DomainError('VALIDATION_FAILED', `to (${to}) is before today (${today})`);
+    }
 
-    const entries = await findLedgerEntries({}, db);
-    const balance = await findBalance(db);
-    if (!balance) throw new DomainError('NOT_INITIALIZED', 'Run setup first');
+    return db
+      .transaction()
+      .setIsolationLevel('repeatable read')
+      .execute(async (trx) => {
+        const balance = await findBalance(trx);
+        if (!balance) throw new DomainError('NOT_INITIALIZED', 'Run setup first');
 
-    const scheduled = await findCashflows({ status: 'scheduled' }, db);
-    const lastMaturity = calculateLastMaturity(scheduled);
-    const horizon = to ?? lastMaturity ?? today;
+        const actual = await findDailyClosingBalances(trx);
+        const scheduled = await findCashflows({ status: 'scheduled' }, trx);
 
-    const events = scheduled
-      .map((cashflow) => toEvent(cashflow, today))
-      .filter((event) => event.date <= horizon);
+        const lastMaturity = calculateLastMaturity(scheduled);
+        const horizon = to ?? lastMaturity ?? today;
+        const events = scheduled
+          .map((cashflow) => toEvent(cashflow, today))
+          .filter((event) => event.date <= horizon);
 
-    return {
-      today,
-      lastMaturity,
-      actual: calculateDailyBalances(entries),
-      projected: calculateProjection(balance.amountCents, today, events),
-      events,
-    };
+        const projected = calculateProjection(balance.amountCents, today, horizon, events);
+
+        return { today, lastMaturity, actual, projected, events };
+      });
   }
 
   return { getTimeline };
@@ -54,22 +55,13 @@ export function createTimelineService({ db, clock }: { db: Database; clock: Cloc
 
 export type TimelineService = ReturnType<typeof createTimelineService>;
 
-export function calculateDailyBalances(entries: LedgerEntry[]): BalancePoint[] {
-  const closingByDate = new Map<IsoDate, number>();
-
-  for (const entry of entries) {
-    closingByDate.set(toNewYorkDate(entry.occurredAt), entry.balanceAfterCents);
-  }
-
-  return [...closingByDate].map(([date, balanceCents]) => ({ date, balanceCents }));
-}
-
 export function calculateProjection(
   balanceCents: number,
   today: IsoDate,
+  horizon: IsoDate,
   events: TimelineEvent[],
-): BalancePoint[] {
-  const points: BalancePoint[] = [{ date: today, balanceCents }];
+): DailyBalance[] {
+  const points: DailyBalance[] = [{ date: today, balanceCents }];
   let running = balanceCents;
 
   for (const event of events) {
@@ -79,6 +71,9 @@ export function calculateProjection(
     if (last?.date === event.date) last.balanceCents = running;
     else points.push({ date: event.date, balanceCents: running });
   }
+
+  const last = points[points.length - 1];
+  if (last && last.date < horizon) points.push({ date: horizon, balanceCents: running });
 
   return points;
 }

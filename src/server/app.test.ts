@@ -23,6 +23,25 @@ describe('api app', () => {
     expect(await response.json()).toMatchObject({ error: { code: 'UNAUTHORIZED' } });
   });
 
+  it('runs the pay-cashflows job and reports what it paid', async () => {
+    const app = createTestApp([
+      [{ acquired: true }],
+      [],
+      [{ id: 'run-1' }],
+      [],
+      [{ id: 'run-1' }],
+      [],
+    ]);
+
+    const response = await app.request('/api/v1/jobs/pay-cashflows', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${TEST_JOB_TOKEN}` },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ paid: 0, totalCents: 0 });
+  });
+
   it('reports a skipped job when another run holds its lock', async () => {
     const response = await createTestApp([[{ acquired: false }]]).request(
       '/api/v1/jobs/pay-cashflows',

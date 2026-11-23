@@ -10,7 +10,11 @@ const getTimeline = createRoute({
   tags: ['Cash'],
   summary: 'Actual balance history plus projection from scheduled cashflows',
   request: { query: TimelineQuery },
-  responses: { 200: jsonBody(Timeline, 'Chart-ready series'), 409: errorBody('NOT_INITIALIZED') },
+  responses: {
+    200: jsonBody(Timeline, 'Chart-ready series'),
+    400: errorBody('VALIDATION_FAILED'),
+    409: errorBody('NOT_INITIALIZED'),
+  },
 });
 
 export function timelineRoutes({ timeline }: Container) {

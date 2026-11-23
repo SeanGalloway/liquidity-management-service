@@ -13,8 +13,6 @@ import { rejectInvertedRange } from '../domain/dates';
 import type { Clock } from '../domain/types';
 import type { BalanceService } from './balance';
 
-const PAYMENT_BATCH_LIMIT = 500;
-
 export type PaymentSummary = { paid: number; totalCents: number };
 
 type Dependencies = { db: Database; clock: Clock; balance: BalanceService };
@@ -23,10 +21,7 @@ export function createCashflowsService({ db, clock, balance }: Dependencies) {
   async function payDueCashflows(): Promise<PaymentSummary> {
     const summary: PaymentSummary = { paid: 0, totalCents: 0 };
 
-    for (let attempt = 0; attempt < PAYMENT_BATCH_LIMIT; attempt++) {
-      const paid = await payNextDueCashflow();
-      if (!paid) break;
-
+    for (let paid = await payNextDueCashflow(); paid; paid = await payNextDueCashflow()) {
       summary.paid += 1;
       summary.totalCents += paid.amountCents;
     }
@@ -52,7 +47,7 @@ export function createCashflowsService({ db, clock, balance }: Dependencies) {
   }
 
   async function listCashflows(filter: CashflowsFilter): Promise<ScheduledCashflow[]> {
-    rejectInvertedRange(filter.range?.from, filter.range?.to);
+    rejectInvertedRange(filter.from, filter.to);
     return findCashflows(filter, db);
   }
 
