@@ -28,6 +28,7 @@ describe('setup service', () => {
 
     const setup = createSetupService({
       db,
+      resetEnabled: false,
       balance: createBalanceService({ db }),
       yields,
       jobRuns,
@@ -45,6 +46,7 @@ describe('setup service', () => {
     expect(jobRuns.runExclusiveJob).toHaveBeenCalledWith('sync-yields', yields.syncYields);
     expect(status).toEqual({
       initialized: true,
+      resetEnabled: false,
       yields: { earliest: null, latest: null, rows: 0, backfill: 'running' },
     });
   });
@@ -55,6 +57,7 @@ describe('setup service', () => {
 
     const setup = createSetupService({
       db,
+      resetEnabled: false,
       balance: createBalanceService({ db }),
       yields,
       jobRuns,
@@ -69,5 +72,42 @@ describe('setup service', () => {
       'rollback',
     ]);
     expect(jobRuns.runExclusiveJob).not.toHaveBeenCalled();
+  });
+
+  it('erases the portfolio in one statement and reports the desk uninitialized', async () => {
+    const { db, sql } = createRecordingDb([
+      [],
+      [],
+      [{ earliest: '2025-11-24', latest: '2026-11-20', rows: 3486 }],
+    ]);
+    const setup = createSetupService({
+      db,
+      resetEnabled: true,
+      balance: createBalanceService({ db }),
+      yields,
+      jobRuns: createJobRunsStub(),
+    });
+
+    const status = await setup.resetPortfolio();
+
+    expect(sql()[0]?.replace(/\s+/g, ' ').trim()).toBe(
+      'truncate table ledger_entries, scheduled_cashflows, holdings, securities, orders, balance',
+    );
+    expect(status.initialized).toBe(false);
+    expect(status.yields.rows).toBe(3486);
+  });
+
+  it('refuses to reset when simulation is disabled, without touching the database', async () => {
+    const { db, queries } = createRecordingDb();
+    const setup = createSetupService({
+      db,
+      resetEnabled: false,
+      balance: createBalanceService({ db }),
+      yields,
+      jobRuns: createJobRunsStub(),
+    });
+
+    await expect(setup.resetPortfolio()).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(queries).toHaveLength(0);
   });
 });

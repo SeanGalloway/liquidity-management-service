@@ -162,12 +162,19 @@ describe('api app', () => {
     expect(refs).toEqual([null, { type: 'order', id: 'order-1' }]);
   });
 
+  it('returns 404 for setup reset when simulation is disabled', async () => {
+    const response = await createTestApp().request('/api/v1/setup/reset', { method: 'POST' });
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ error: { code: 'NOT_FOUND' } });
+  });
+
   it('publishes an OpenAPI document covering every planned endpoint', async () => {
     const response = await createTestApp().request('/api/v1/openapi.json');
     const doc = await response.json();
 
     expect(response.status).toBe(200);
-    expect(Object.keys(doc.paths)).toHaveLength(17);
+    expect(Object.keys(doc.paths)).toHaveLength(18);
     expect(doc.components.schemas).toHaveProperty('Order');
   });
 

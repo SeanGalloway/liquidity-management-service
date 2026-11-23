@@ -18,7 +18,7 @@ export const TEST_JOB_TOKEN = 'test-job-token-0123456789';
 
 export const emptyYieldsClient: YieldsClient = { fetchParYieldCurve: async () => [] };
 
-export function createTestContainer(db: Database): Container {
+export function createTestContainer(db: Database, { enableSimulation = false } = {}): Container {
   const clock = createFakeClock('2026-11-22T17:00:00Z');
   const jobRuns = createJobRunsService({ db });
   const balance = createBalanceService({ db });
@@ -27,7 +27,13 @@ export function createTestContainer(db: Database): Container {
     clock,
     yieldsClient: emptyYieldsClient,
   });
-  const setup = createSetupService({ db, balance, yields, jobRuns });
+  const setup = createSetupService({
+    db,
+    resetEnabled: enableSimulation,
+    balance,
+    yields,
+    jobRuns,
+  });
   const quotes = createQuotesService({ clock, yields, securityResolver: createSecurityResolver() });
 
   return {
@@ -35,6 +41,7 @@ export function createTestContainer(db: Database): Container {
       databaseUrl: 'postgres://unused',
       jobToken: TEST_JOB_TOKEN,
       treasuryBaseUrl: 'http://unused',
+      enableSimulation,
     },
     db,
     clock,

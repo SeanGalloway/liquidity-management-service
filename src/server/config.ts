@@ -5,12 +5,14 @@ const configSchema = z.object({
   DATABASE_URL: z.string().url(),
   JOB_TOKEN: z.string().min(16),
   TREASURY_BASE_URL: z.string().url().default('https://home.treasury.gov'),
+  ENABLE_SIMULATION: z.enum(['true', 'false']).default('false'),
 });
 
 export type Config = {
   databaseUrl: string;
   jobToken: string;
   treasuryBaseUrl: string;
+  enableSimulation: boolean;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -20,5 +22,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     databaseUrl: parsed.DATABASE_URL,
     jobToken: parsed.JOB_TOKEN,
     treasuryBaseUrl: parsed.TREASURY_BASE_URL,
+    enableSimulation: parsed.ENABLE_SIMULATION === 'true',
   };
 }

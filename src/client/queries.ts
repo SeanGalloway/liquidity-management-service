@@ -20,6 +20,7 @@ import {
   fetchYieldHistory,
   postOrder,
   postSetup,
+  postSetupReset,
 } from './api';
 import type { CreateOrderRequest, SetupStatus } from './types';
 
@@ -59,6 +60,17 @@ export function useInitializeDesk() {
     mutationFn: postSetup,
     onSuccess: (status) => queryClient.setQueryData(queryKeys.setup, status),
     onError: () => queryClient.invalidateQueries({ queryKey: queryKeys.setup }),
+  });
+}
+
+export function useResetPortfolio() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: postSetupReset,
+    onSuccess: (status) => {
+      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== queryKeys.setup[0] });
+      queryClient.setQueryData(queryKeys.setup, status);
+    },
   });
 }
 

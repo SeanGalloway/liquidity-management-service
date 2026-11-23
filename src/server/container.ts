@@ -41,7 +41,13 @@ export function createContainer(): Container {
   const jobRuns = createJobRunsService({ db });
   const balance = createBalanceService({ db });
   const yields = createYieldsService({ db, clock, yieldsClient });
-  const setup = createSetupService({ db, balance, yields, jobRuns });
+  const setup = createSetupService({
+    db,
+    resetEnabled: config.enableSimulation,
+    balance,
+    yields,
+    jobRuns,
+  });
   const securityResolver = createSecurityResolver();
   const quotes = createQuotesService({ clock, yields, securityResolver });
   const executeOrder = createExecuteOrder({ quotes, clock });

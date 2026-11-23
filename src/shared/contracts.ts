@@ -43,6 +43,9 @@ function listOf<T extends z.ZodType>(item: T) {
 export const SetupStatus = z
   .object({
     initialized: z.boolean(),
+    resetEnabled: z
+      .boolean()
+      .meta({ description: 'Whether POST /setup/reset is available (ENABLE_SIMULATION)' }),
     yields: z.object({
       earliest: IsoDate.nullable(),
       latest: IsoDate.nullable(),
