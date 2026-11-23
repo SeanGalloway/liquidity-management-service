@@ -52,7 +52,7 @@ describe('api app', () => {
   });
 
   it('reports health with the latest yield date', async () => {
-    const app = createTestApp([[], [{ earliest: '2025-11-03', latest: '2026-11-20', rows: 3400 }]]);
+    const app = createTestApp([[{ earliest: '2025-11-03', latest: '2026-11-20', rows: 3400 }]]);
 
     const response = await app.request('/api/v1/health');
 

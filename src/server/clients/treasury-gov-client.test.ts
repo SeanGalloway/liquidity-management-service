@@ -38,6 +38,29 @@ describe('parseParYieldCsv', () => {
     expect(() => parseParYieldCsv(renamed)).toThrow('Unexpected Treasury CSV header');
   });
 
+  it('accepts years published before the 1.5-month column existed', () => {
+    const lines = FIXTURE.trim().split('\n');
+    const withoutColumn = lines
+      .map((line) =>
+        line
+          .split(',')
+          .filter((_, index) => index !== 2)
+          .join(','),
+      )
+      .join('\n');
+
+    const points = parseParYieldCsv(withoutColumn);
+
+    expect(points.map((point) => point.tenorCode)).not.toContain('1.5M');
+    expect(points.filter((point) => point.asOfDate === '2026-11-20')).toHaveLength(13);
+  });
+
+  it('names the row when a date cell is not a date', () => {
+    expect(() => parseParYieldCsv(`${FIXTURE.trim()}\nSource: Treasury,,`)).toThrow(
+      'Unexpected Treasury CSV row: Source: Treasury',
+    );
+  });
+
   it('treats an empty body as no data', () => {
     expect(parseParYieldCsv('')).toEqual([]);
     expect(parseParYieldCsv('\n')).toEqual([]);
@@ -64,6 +87,9 @@ describe('createTreasuryGovClient', () => {
 
     const requestedUrls = fetchMock.mock.calls.map((call) => String((call as unknown[])[0]));
     expect(requestedUrls).toHaveLength(2);
+    expect((fetchMock.mock.calls[0] as unknown[])[1]).toMatchObject({
+      signal: expect.any(AbortSignal),
+    });
     expect(requestedUrls[0]).toContain(
       '/daily-treasury-rates.csv/2025/all?type=daily_treasury_yield_curve',
     );

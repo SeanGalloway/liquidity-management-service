@@ -6,6 +6,7 @@ import {
   insertJobRun,
   markJobRunFinished,
   markStaleJobRunsFailed,
+  type JobRunStatus,
 } from '../db/job-runs';
 import type { Json } from '../db/schema';
 
@@ -18,7 +19,7 @@ export type JobStatus = 'idle' | 'running' | 'done' | 'failed';
 
 export type ExclusiveJobOutcome<T> = { status: 'skipped' } | { status: 'succeeded'; result: T };
 
-const RUN_STATUS_TO_JOB_STATUS: Record<string, JobStatus> = {
+const RUN_STATUS_TO_JOB_STATUS: Record<JobRunStatus, JobStatus> = {
   running: 'running',
   succeeded: 'done',
   failed: 'failed',
@@ -52,7 +53,7 @@ export function createJobRunsService({ db }: { db: Database }) {
 
   async function getJobStatus(job: string): Promise<JobStatus> {
     const run = await findLatestJobRun(job, db);
-    return run ? (RUN_STATUS_TO_JOB_STATUS[run.status] ?? 'idle') : 'idle';
+    return run ? RUN_STATUS_TO_JOB_STATUS[run.status] : 'idle';
   }
 
   return { runExclusiveJob, getJobStatus };

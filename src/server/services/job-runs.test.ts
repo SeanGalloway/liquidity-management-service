@@ -7,7 +7,7 @@ describe('runExclusiveJob', () => {
     const { db, sql } = createRecordingDb([[{ acquired: false }]]);
     const work = vi.fn();
 
-    const outcome = await createJobRunsService({ db }).runExclusiveJob('poll-yields', work);
+    const outcome = await createJobRunsService({ db }).runExclusiveJob('sync-yields', work);
 
     expect(outcome).toEqual({ status: 'skipped' });
     expect(work).not.toHaveBeenCalled();
@@ -23,7 +23,7 @@ describe('runExclusiveJob', () => {
       [],
     ]);
 
-    const outcome = await createJobRunsService({ db }).runExclusiveJob('poll-yields', async () => ({
+    const outcome = await createJobRunsService({ db }).runExclusiveJob('sync-yields', async () => ({
       inserted: 14,
     }));
 
@@ -45,7 +45,7 @@ describe('runExclusiveJob', () => {
       [],
     ]);
 
-    const attempt = createJobRunsService({ db }).runExclusiveJob('poll-yields', async () => {
+    const attempt = createJobRunsService({ db }).runExclusiveJob('sync-yields', async () => {
       throw new Error('treasury down');
     });
 
@@ -59,7 +59,7 @@ describe('runExclusiveJob', () => {
     const { db } = createRecordingDb([[{ acquired: true }], [], [{ id: 'run-1' }]]);
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const attempt = createJobRunsService({ db }).runExclusiveJob('poll-yields', async () => {
+    const attempt = createJobRunsService({ db }).runExclusiveJob('sync-yields', async () => {
       throw new Error('treasury down');
     });
 
@@ -70,7 +70,7 @@ describe('runExclusiveJob', () => {
     const { db } = createRecordingDb([[{ status: 'succeeded' }], []]);
     const service = createJobRunsService({ db });
 
-    expect(await service.getJobStatus('backfill-yields')).toBe('done');
-    expect(await service.getJobStatus('backfill-yields')).toBe('idle');
+    expect(await service.getJobStatus('sync-yields')).toBe('done');
+    expect(await service.getJobStatus('sync-yields')).toBe('idle');
   });
 });

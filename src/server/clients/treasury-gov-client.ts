@@ -8,6 +8,9 @@ export const TREASURY_SOURCE = 'treasury.gov';
 
 const CSV_PATH = '/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv';
 const CLOSE_TIME_ET = '15:30:00';
+const REQUEST_TIMEOUT_MS = 30_000;
+const TENOR_HEADER_PATTERN = /^\d+(\.\d+)?\s*(Mo|Month|Months|Yr|Year|Years)$/i;
+const US_DATE_PATTERN = /^\d{2}\/\d{2}\/\d{4}$/;
 
 const HEADER_TO_TENOR: Record<string, string> = {
   '1 Mo': '1M',
@@ -47,7 +50,10 @@ export async function fetchParYieldCsv(baseUrl: string, year: number): Promise<s
   url.searchParams.set('field_tdr_date_value', String(year));
   url.searchParams.set('_format', 'csv');
 
-  const response = await fetch(url, { headers: { 'user-agent': 'liquidity-management-service' } });
+  const response = await fetch(url, {
+    headers: { 'user-agent': 'liquidity-management-service' },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
   if (!response.ok) {
     throw new Error(`Treasury par curve ${year} request failed with ${response.status}`);
   }
@@ -66,15 +72,24 @@ export function parseParYieldCsv(csv: string): CurvePoint[] {
 }
 
 function rejectUnexpectedHeaders(headers: string[]) {
-  const missing = Object.keys(HEADER_TO_TENOR).filter((header) => !headers.includes(header));
+  const tenorHeaders = headers.slice(1);
+  const known = tenorHeaders.filter((header) => HEADER_TO_TENOR[header]);
+  const unknownTenors = tenorHeaders.filter(
+    (header) => !HEADER_TO_TENOR[header] && TENOR_HEADER_PATTERN.test(header),
+  );
 
-  if (headers[0] !== 'Date' || missing.length > 0) {
+  if (headers[0] !== 'Date' || known.length === 0 || unknownTenors.length > 0) {
     throw new Error(`Unexpected Treasury CSV header: ${headers.join(',')}`);
   }
 }
 
 function parseRow(headers: string[], cells: string[]): CurvePoint[] {
-  const asOfDate = toIsoDate(cells[0] ?? '');
+  const usDate = cells[0] ?? '';
+  if (!US_DATE_PATTERN.test(usDate)) {
+    throw new Error(`Unexpected Treasury CSV row: ${cells.join(',')}`);
+  }
+
+  const asOfDate = toIsoDate(usDate);
   const observedAt = toNewYorkInstant(asOfDate, CLOSE_TIME_ET);
   const points: CurvePoint[] = [];
 

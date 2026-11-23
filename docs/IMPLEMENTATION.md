@@ -389,3 +389,8 @@ close, and `/timeline` returns actual + projected series.
 - `postLedgerEntry(movement, trx)` — executor last, like repositories. Balance lock/update target `id = 1`.
 - Tenor `kind` narrowed in the repository (`SecurityKind`), no cast in the handler.
 - History: tenor list trimmed, must be non-empty; `from > to` rejected.
+- Round 2: parser requires `Date` plus at least one known tenor and rejects only unknown
+  *tenor-like* headers (older years lack `1.5 Month`); bad date rows fail with the row named;
+  Treasury requests time out after 30 s; health goes through `yields.getCoverage()`; job run
+  status is narrowed in the repository. Declined: a `source` filter on curve queries (single
+  source today — add with the second vendor) and renaming setup's `backfill` field (UI contract).

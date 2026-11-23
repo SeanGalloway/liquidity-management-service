@@ -60,13 +60,7 @@ describe('yields service', () => {
     const result = await service.syncYields();
 
     expect(live.fetchParYieldCurve).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      fetched: 0,
-      stored: 0,
-      earliest: '2026-10-29',
-      latest: '2026-11-22',
-      rows: 3,
-    });
+    expect(result).toEqual({ fetched: 0, stored: 0, earliest: '2026-10-29', latest: '2026-11-22' });
   });
 
   it('builds a curve from the stored observations', async () => {

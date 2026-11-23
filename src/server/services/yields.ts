@@ -9,8 +9,9 @@ import {
   findYieldHistory,
   upsertYieldObservations,
   type CurveObservation,
+  type YieldCoverage,
 } from '../db/yields';
-import { addDays, addMonths } from '../domain/dates';
+import { addMonths } from '../domain/dates';
 import { DomainError } from '../domain/errors';
 import type { Clock, DateRange, IsoDate } from '../domain/types';
 
@@ -46,13 +47,12 @@ export function createYieldsService({ db, clock, yieldsClient }: Dependencies) {
     const today = clock.today();
     const before = await findYieldCoverage(db);
 
-    const firstMissing = before.latest
-      ? addDays(before.latest, 1)
-      : addMonths(today, -SYNC_LOOKBACK_MONTHS);
-    if (firstMissing > today) return { fetched: 0, stored: 0, ...before };
+    if (before.latest && before.latest >= today) {
+      return { fetched: 0, stored: 0, earliest: before.earliest, latest: before.latest };
+    }
 
-    const refetchFrom = before.latest ?? firstMissing;
-    const points = await yieldsClient.fetchParYieldCurve({ from: refetchFrom, to: today });
+    const from = before.latest ?? addMonths(today, -SYNC_LOOKBACK_MONTHS);
+    const points = await yieldsClient.fetchParYieldCurve({ from, to: today });
     const stored = await upsertYieldObservations(points, db);
     const after = await findYieldCoverage(db);
 
@@ -95,7 +95,11 @@ export function createYieldsService({ db, clock, yieldsClient }: Dependencies) {
     return findTenors(db);
   }
 
-  return { syncYields, getCurve, listYieldHistory, listTenors };
+  function getCoverage(): Promise<YieldCoverage> {
+    return findYieldCoverage(db);
+  }
+
+  return { syncYields, getCurve, listYieldHistory, listTenors, getCoverage };
 }
 
 export type YieldsService = ReturnType<typeof createYieldsService>;
