@@ -5,7 +5,7 @@ import { createCurveQuotes } from '@test/helpers/quotes';
 import { createRecordingDb } from '@test/helpers/recording-db';
 import { createBalanceService } from './balance';
 import { createExecuteOrder, type ExecuteOrder } from './execute-order';
-import { createOrdersService } from './orders';
+import { createOrdersService, hashRequest } from './orders';
 
 const clock = createFakeClock('2026-11-22T17:00:00Z');
 const quotes = createCurveQuotes(clock);
@@ -27,11 +27,7 @@ function createService(scripted: Scripted, executeOrder?: ExecuteOrder) {
   return { service, ...recording };
 }
 
-async function submittedHash() {
-  const { service, queries } = createService([[], [{ ...PENDING_ORDER }]]);
-  await service.submitOrder('probe', REQUEST);
-  return String(queries[1]?.parameters[1]);
-}
+const BALANCE = { id: 1, amountCents: 1_500_000_000 };
 
 describe('submitOrder', () => {
   it('quotes and inserts a pending order that executes 2–5 seconds later', async () => {
@@ -60,7 +56,7 @@ describe('submitOrder', () => {
   });
 
   it('replays an earlier order for the same key and request without re-quoting', async () => {
-    const requestHash = await submittedHash();
+    const requestHash = hashRequest(REQUEST);
     const spy = vi.spyOn(quotes, 'quoteOrder');
     const { service, queries } = createService([
       [{ ...PENDING_ORDER, requestHash, holdingId: null }],
@@ -85,16 +81,17 @@ describe('submitOrder', () => {
   });
 
   it('resolves a lost insert race by replaying the winner', async () => {
-    const requestHash = await submittedHash();
+    const requestHash = hashRequest(REQUEST);
     const { service } = createService([
       [],
       [],
       [{ ...PENDING_ORDER, requestHash, holdingId: null }],
     ]);
 
-    const { replayed } = await service.submitOrder('ticket-key-0001', REQUEST);
+    const { order, replayed } = await service.submitOrder('ticket-key-0001', REQUEST);
 
     expect(replayed).toBe(true);
+    expect(order.id).toBe(PENDING_ORDER.id);
   });
 });
 
@@ -102,7 +99,8 @@ describe('fillNextDueOrder', () => {
   it('debits cash, records the security, holding and cashflows, then marks executed — in one transaction', async () => {
     const { service, sql } = createService([
       [PENDING_ORDER],
-      [{ id: 1, amountCents: 1_500_000_000 }],
+      [BALANCE],
+      [BALANCE],
       [{ id: 'entry-1' }],
       [{ id: 1 }],
       [{ id: 'security-1' }],
@@ -116,6 +114,7 @@ describe('fillNextDueOrder', () => {
       'begin',
       'select * from "orders"',
       'select * from "balance"',
+      'select * from "balance"',
       'insert into "ledger_entries"',
       'update "balance" set "amount_cents" = $1, "updated_at" = now()',
       'insert into "securities"',
@@ -126,14 +125,19 @@ describe('fillNextDueOrder', () => {
     ]);
   });
 
-  it('rejects for insufficient funds without creating a holding', async () => {
-    const { service, sql } = createService([
-      [PENDING_ORDER],
-      [{ id: 1, amountCents: 100_00 }],
-      [{ ...PENDING_ORDER, status: 'rejected' }],
-    ]);
+  it('rejects for insufficient funds before calling the execution engine', async () => {
+    const executeOrder = vi.fn();
+    const { service, sql } = createService(
+      [
+        [PENDING_ORDER],
+        [{ id: 1, amountCents: 100_00 }],
+        [{ ...PENDING_ORDER, status: 'rejected' }],
+      ],
+      executeOrder,
+    );
 
     expect(await service.fillNextDueOrder()).toBe('rejected');
+    expect(executeOrder).not.toHaveBeenCalled();
     expect(sql()).toHaveLength(5);
     expect(sql()[3]).toContain('update "orders" set "status" = $1, "reject_reason" = $2');
     expect(sql()[4]).toBe('commit');
@@ -145,12 +149,12 @@ describe('fillNextDueOrder', () => {
       reason: 'NO_MARKET_DATA',
     }));
     const { service, queries } = createService(
-      [[PENDING_ORDER], [{ ...PENDING_ORDER, status: 'rejected' }]],
+      [[PENDING_ORDER], [BALANCE], [{ ...PENDING_ORDER, status: 'rejected' }]],
       executeOrder,
     );
 
     expect(await service.fillNextDueOrder()).toBe('rejected');
-    expect(queries[2]?.parameters).toContain('NO_MARKET_DATA');
+    expect(queries[3]?.parameters).toContain('NO_MARKET_DATA');
   });
 
   it('rolls back and marks the order failed on an unexpected error', async () => {
@@ -158,13 +162,14 @@ describe('fillNextDueOrder', () => {
       throw new Error('connection reset');
     });
     const { service, sql } = createService(
-      [[PENDING_ORDER], [{ id: PENDING_ORDER.id }]],
+      [[PENDING_ORDER], [BALANCE], [{ id: PENDING_ORDER.id }]],
       executeOrder,
     );
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(await service.fillNextDueOrder()).toBe('failed');
-    expect(sql().slice(2)).toEqual([
+    consoleError.mockRestore();
+    expect(sql().slice(3)).toEqual([
       'rollback',
       'update "orders" set "status" = $1, "failure_message" = $2, "updated_at" = now() where "id" = $3 and "status" = $4 returning *',
     ]);
@@ -185,7 +190,7 @@ describe('fillDueOrders', () => {
       reason: 'NO_MARKET_DATA',
     }));
     const { service } = createService(
-      [[PENDING_ORDER], [{}], [PENDING_ORDER], [{}], []],
+      [[PENDING_ORDER], [BALANCE], [{}], [PENDING_ORDER], [BALANCE], [{}], []],
       executeOrder,
     );
 
@@ -210,16 +215,6 @@ describe('listOrders', () => {
     const page = await service.listOrders({ limit: 2 });
 
     expect(page.orders.map((order) => order.id)).toEqual(['order-1', 'order-2']);
-    expect(Buffer.from(page.nextCursor ?? '', 'base64url').toString()).toBe(
-      '2026-11-22T17:00:00.000Z|order-2',
-    );
-  });
-
-  it('rejects a malformed cursor', async () => {
-    const { service } = createService([]);
-
-    await expect(service.listOrders({ limit: 2, cursor: 'nope' })).rejects.toMatchObject({
-      code: 'VALIDATION_FAILED',
-    });
+    expect(page.nextCursor).toBe('order-2');
   });
 });

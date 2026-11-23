@@ -7,6 +7,8 @@ export type DateRange = { from: IsoDate; to: IsoDate };
 
 export type SecurityKind = 'bill' | 'note' | 'bond';
 
+export type OrderStatus = 'pending' | 'executed' | 'rejected' | 'failed';
+
 export type Clock = {
   now: () => Date;
   today: () => IsoDate;

@@ -34,19 +34,18 @@ describe('orders repository', () => {
     );
   });
 
-  it('pages newest first with a (created_at, id) keyset and joins the holding', async () => {
+  it('pages newest first by time-ordered id and joins the holding', async () => {
     const { db, queries } = createRecordingDb();
-    const after = { createdAt: new Date('2026-11-22T17:00:00Z'), id: 'order-9' };
 
-    await findOrders({ status: 'executed', after, limit: 26 }, db);
+    await findOrders({ status: 'executed', afterId: 'order-9', limit: 26 }, db);
 
     expect(queries[0]?.sql).toBe(
       'select "orders".*, "holdings"."id" as "holding_id" from "orders" ' +
         'left join "holdings" on "holdings"."order_id" = "orders"."id" ' +
-        'where "orders"."status" = $1 and ("orders"."created_at", "orders"."id") < ($2, $3) ' +
-        'order by "orders"."created_at" desc, "orders"."id" desc limit $4',
+        'where "orders"."status" = $1 and "orders"."id" < $2 ' +
+        'order by "orders"."id" desc limit $3',
     );
-    expect(queries[0]?.parameters).toEqual(['executed', after.createdAt, 'order-9', 26]);
+    expect(queries[0]?.parameters).toEqual(['executed', 'order-9', 26]);
   });
 
   it('only marks an order failed while it is still pending', async () => {

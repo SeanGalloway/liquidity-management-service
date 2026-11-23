@@ -220,7 +220,7 @@ export const Order = z
 
 export const OrdersQuery = z.object({
   status: OrderStatus.optional(),
-  cursor: z.string().optional(),
+  cursor: Uuid.optional().meta({ description: 'nextCursor from the previous page' }),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 });
 

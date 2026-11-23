@@ -429,3 +429,17 @@ close, and `/timeline` returns actual + projected series.
 - Round 3: coupon pricer's citation corrected — it is SIFMA street convention (secondary market),
   not Treasury's auction formula (App. B, simple-interest first period); accrued per 100 rounded to six
   decimals before cents, like the clean price; `Quote.settleDate` exposed.
+
+## Changes from PR review (Vertical 3)
+
+- Order paging keys on the time-ordered `uuidv7` id alone (`id < cursor`, `order by id desc`); the
+  cursor is the last order id. The old `(created_at, id)` cursor lost microseconds through JS `Date`.
+  Migration `0002` adds `(status, id desc)` and drops the unused `(created_at, id)` index.
+- Funds are checked against the order's quoted total **before** the execution engine is called, so a
+  real broker is never asked to buy what the ledger can't pay for; the debit check remains a backstop.
+- The engine returns only fill facts (`Fill`: security, yield, clean/accrued/total cents, times); the
+  orders service derives the cashflow schedule with the pure `calculateCashflows`.
+- Failing to mark an order `failed` is logged and no longer aborts the batch.
+- `fill-orders` no longer advertises a `skipped` response; order status is narrowed in the repository.
+- Declined: moving the engine call outside the DB transaction (claim → execute → settle with
+  reconciliation) — that is the real-broker flow already in Future work; mixed app/DB timestamps.

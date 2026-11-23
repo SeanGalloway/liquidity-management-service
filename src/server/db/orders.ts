@@ -1,13 +1,12 @@
 import 'server-only';
 import { sql, type Insertable, type Selectable, type Transaction } from 'kysely';
+import type { OrderStatus } from '../domain/types';
 import type { Executor } from './client';
 import type { DB, Orders } from './schema';
 
-export type Order = Selectable<Orders>;
+export type Order = Omit<Selectable<Orders>, 'status'> & { status: OrderStatus };
 export type NewOrder = Insertable<Orders>;
 export type OrderWithHolding = Order & { holdingId: string | null };
-
-export type OrderKeyset = { createdAt: Date; id: string };
 
 export type OrderFill = {
   executedAt: Date;
@@ -17,8 +16,8 @@ export type OrderFill = {
 };
 
 export type OrdersFilter = {
-  status?: string;
-  after?: OrderKeyset;
+  status?: OrderStatus;
+  afterId?: string;
   limit: number;
 };
 
@@ -28,6 +27,7 @@ export function insertOrder(order: NewOrder, ex: Executor): Promise<Order | unde
     .values(order)
     .onConflict((oc) => oc.column('idempotencyKey').doNothing())
     .returningAll()
+    .$narrowType<{ status: OrderStatus }>()
     .executeTakeFirst();
 }
 
@@ -45,19 +45,10 @@ export function findOrderByIdempotencyKey(
 }
 
 export function findOrders(filter: OrdersFilter, ex: Executor): Promise<OrderWithHolding[]> {
-  let query = selectOrdersWithHolding(ex)
-    .orderBy('orders.createdAt', 'desc')
-    .orderBy('orders.id', 'desc')
-    .limit(filter.limit);
+  let query = selectOrdersWithHolding(ex).orderBy('orders.id', 'desc').limit(filter.limit);
 
   if (filter.status) query = query.where('orders.status', '=', filter.status);
-
-  const after = filter.after;
-  if (after) {
-    query = query.where((eb) =>
-      eb(eb.refTuple('orders.createdAt', 'orders.id'), '<', eb.tuple(after.createdAt, after.id)),
-    );
-  }
+  if (filter.afterId) query = query.where('orders.id', '<', filter.afterId);
 
   return query.execute();
 }
@@ -75,6 +66,7 @@ export function findNextDueOrderForUpdate(
     .limit(1)
     .forUpdate()
     .skipLocked()
+    .$narrowType<{ status: OrderStatus }>()
     .executeTakeFirst();
 }
 
@@ -88,6 +80,7 @@ export function markOrderExecuted(
     .set({ ...fill, status: 'executed', updatedAt: sql`now()` })
     .where('id', '=', id)
     .returningAll()
+    .$narrowType<{ status: OrderStatus }>()
     .executeTakeFirstOrThrow();
 }
 
@@ -101,6 +94,7 @@ export function markOrderRejected(
     .set({ status: 'rejected', rejectReason, updatedAt: sql`now()` })
     .where('id', '=', id)
     .returningAll()
+    .$narrowType<{ status: OrderStatus }>()
     .executeTakeFirstOrThrow();
 }
 
@@ -115,6 +109,7 @@ export function markOrderFailed(
     .where('id', '=', id)
     .where('status', '=', 'pending')
     .returningAll()
+    .$narrowType<{ status: OrderStatus }>()
     .executeTakeFirst();
 }
 
@@ -123,5 +118,6 @@ function selectOrdersWithHolding(ex: Executor) {
     .selectFrom('orders')
     .leftJoin('holdings', 'holdings.orderId', 'orders.id')
     .selectAll('orders')
-    .select('holdings.id as holdingId');
+    .select('holdings.id as holdingId')
+    .$narrowType<{ status: OrderStatus }>();
 }

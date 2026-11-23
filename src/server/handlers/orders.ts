@@ -36,7 +36,11 @@ const listOrders = createRoute({
   tags: ['Orders'],
   summary: 'Order history, newest first',
   request: { query: OrdersQuery },
-  responses: { 200: jsonBody(OrderList, 'Page of orders') },
+  responses: {
+    200: jsonBody(OrderList, 'Page of orders'),
+    400: errorBody('VALIDATION_FAILED'),
+    409: errorBody('NOT_INITIALIZED'),
+  },
 });
 
 const getOrder = createRoute({
@@ -45,7 +49,11 @@ const getOrder = createRoute({
   tags: ['Orders'],
   summary: 'One order (the ticket polls this while pending)',
   request: { params: IdParam },
-  responses: { 200: jsonBody(Order, 'Order'), 404: errorBody('NOT_FOUND') },
+  responses: {
+    200: jsonBody(Order, 'Order'),
+    404: errorBody('NOT_FOUND'),
+    409: errorBody('NOT_INITIALIZED'),
+  },
 });
 
 export function orderRoutes({ orders }: Container) {
@@ -70,7 +78,7 @@ function toOrderDto(order: OrderWithHolding) {
   return {
     id: order.id,
     side: 'buy' as const,
-    status: order.status as 'pending' | 'executed' | 'rejected' | 'failed',
+    status: order.status,
     maturityDate: order.maturityDate,
     faceCents: order.faceCents,
     quote: {

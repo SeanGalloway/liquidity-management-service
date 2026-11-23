@@ -24,8 +24,9 @@ describe('executeOrder', () => {
 
     expect(execution.status).toBe('filled');
     if (execution.status !== 'filled') return;
-    expect(execution.executedAt).toEqual(clock.now());
-    expect(execution.quote.totalCents).toBe(73_992_886);
+    expect(execution.fill.executedAt).toEqual(clock.now());
+    expect(execution.fill.totalCents).toBe(73_992_886);
+    expect(execution.fill.security.kind).toBe('bill');
   });
 
   it('rejects when there is no market data', async () => {

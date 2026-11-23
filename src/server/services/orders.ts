@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import type { Transaction } from 'kysely';
 import { insertScheduledCashflows } from '../db/cashflows';
 import type { Database } from '../db/client';
+import { findBalanceForUpdate } from '../db/balance';
 import { insertHolding } from '../db/holdings';
 import {
   findNextDueOrderForUpdate,
@@ -14,14 +15,14 @@ import {
   markOrderFailed,
   markOrderRejected,
   type Order,
-  type OrderKeyset,
   type OrderWithHolding,
 } from '../db/orders';
 import type { DB } from '../db/schema';
 import { insertSecurity } from '../db/securities';
 import { withTransaction } from '../db/transaction';
 import { DomainError } from '../domain/errors';
-import type { Clock, IsoDate } from '../domain/types';
+import type { Clock, IsoDate, OrderStatus } from '../domain/types';
+import { calculateCashflows } from '../pricing/quote';
 import type { BalanceService } from './balance';
 import type { ExecuteOrder } from './execute-order';
 import type { QuotesService } from './quotes';
@@ -33,7 +34,7 @@ const FILL_BATCH_LIMIT = 20;
 export type OrderRequest = { maturityDate: IsoDate; faceCents: number };
 export type SubmittedOrder = { order: OrderWithHolding; replayed: boolean };
 export type OrderPage = { orders: OrderWithHolding[]; nextCursor: string | null };
-export type OrdersQuery = { status?: string; cursor?: string; limit: number };
+export type OrdersQuery = { status?: OrderStatus; cursor?: string; limit: number };
 export type FillOutcome = 'none' | 'executed' | 'rejected' | 'failed';
 export type FillSummary = { claimed: number; executed: number; rejected: number; failed: number };
 
@@ -85,13 +86,13 @@ export function createOrdersService({ db, clock, quotes, executeOrder, balance }
 
   async function listOrders(query: OrdersQuery): Promise<OrderPage> {
     const rows = await findOrders(
-      { status: query.status, after: decodeCursor(query.cursor), limit: query.limit + 1 },
+      { status: query.status, afterId: query.cursor, limit: query.limit + 1 },
       db,
     );
 
     const orders = rows.slice(0, query.limit);
     const last = orders[orders.length - 1];
-    const nextCursor = rows.length > query.limit && last ? encodeCursor(last) : null;
+    const nextCursor = rows.length > query.limit && last ? last.id : null;
 
     return { orders, nextCursor };
   }
@@ -125,28 +126,36 @@ export function createOrdersService({ db, clock, quotes, executeOrder, balance }
       if (!claimedOrderId) throw error;
 
       console.error(`order ${claimedOrderId} failed to fill`, error);
-      await markOrderFailed(claimedOrderId, String(error), db);
+      await markOrderFailed(claimedOrderId, String(error), db).catch((markError) =>
+        console.error(`could not mark order ${claimedOrderId} failed`, markError),
+      );
       return 'failed';
     }
   }
 
   async function settleOrder(order: Order, trx: Transaction<DB>): Promise<'executed' | 'rejected'> {
+    const funds = await findBalanceForUpdate(trx);
+    if (funds.amountCents < order.quotedTotalCents) {
+      await markOrderRejected(order.id, 'INSUFFICIENT_FUNDS', trx);
+      return 'rejected';
+    }
+
     const execution = await executeOrder(order);
     if (execution.status === 'rejected') {
       await markOrderRejected(order.id, execution.reason, trx);
       return 'rejected';
     }
 
-    const { quote, executedAt } = execution;
+    const { fill } = execution;
 
-    const debited = await debitForOrder(order, quote.totalCents, trx);
+    const debited = await debitForOrder(order, fill.totalCents, trx);
     if (!debited) {
       await markOrderRejected(order.id, 'INSUFFICIENT_FUNDS', trx);
       return 'rejected';
     }
 
     const security = await insertSecurity(
-      { ...quote.security, couponRateBps: quote.security.couponRateBps?.toString() ?? null },
+      { ...fill.security, couponRateBps: fill.security.couponRateBps?.toString() ?? null },
       trx,
     );
 
@@ -155,16 +164,17 @@ export function createOrdersService({ db, clock, quotes, executeOrder, balance }
         orderId: order.id,
         securityId: security.id,
         faceCents: order.faceCents,
-        cleanCostCents: quote.cleanCents,
-        accruedPaidCents: quote.accruedCents,
-        purchaseYieldBps: quote.yieldBps.toString(),
-        purchasedAt: executedAt,
+        cleanCostCents: fill.cleanCents,
+        accruedPaidCents: fill.accruedCents,
+        purchaseYieldBps: fill.yieldBps.toString(),
+        purchasedAt: fill.executedAt,
       },
       trx,
     );
 
+    const cashflows = calculateCashflows(fill.security, order.faceCents, fill.settleDate);
     await insertScheduledCashflows(
-      quote.cashflows.map((cashflow) => ({
+      cashflows.map((cashflow) => ({
         holdingId: holding.id,
         payDate: cashflow.date,
         kind: cashflow.kind,
@@ -176,10 +186,10 @@ export function createOrdersService({ db, clock, quotes, executeOrder, balance }
     await markOrderExecuted(
       order.id,
       {
-        executedAt,
-        executedYieldBps: quote.yieldBps.toString(),
-        executedTotalCents: quote.totalCents,
-        pricedAsOf: quote.pricedAsOf,
+        executedAt: fill.executedAt,
+        executedYieldBps: fill.yieldBps.toString(),
+        executedTotalCents: fill.totalCents,
+        pricedAsOf: fill.pricedAsOf,
       },
       trx,
     );
@@ -216,7 +226,7 @@ function replay(existing: OrderWithHolding, requestHash: string): SubmittedOrder
   return { order: existing, replayed: true };
 }
 
-function hashRequest(request: OrderRequest): string {
+export function hashRequest(request: OrderRequest): string {
   const canonical = JSON.stringify({
     maturityDate: request.maturityDate,
     faceCents: request.faceCents,
@@ -226,21 +236,4 @@ function hashRequest(request: OrderRequest): string {
 
 function randomExecutionDelayMs(): number {
   return MIN_EXECUTION_DELAY_MS + Math.random() * (MAX_EXECUTION_DELAY_MS - MIN_EXECUTION_DELAY_MS);
-}
-
-function encodeCursor(order: OrderWithHolding): string {
-  return Buffer.from(`${order.createdAt.toISOString()}|${order.id}`).toString('base64url');
-}
-
-function decodeCursor(cursor: string | undefined): OrderKeyset | undefined {
-  if (!cursor) return undefined;
-
-  const [createdAt, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  const createdAtDate = new Date(createdAt ?? '');
-
-  if (!id || Number.isNaN(createdAtDate.getTime())) {
-    throw new DomainError('VALIDATION_FAILED', 'Invalid cursor');
-  }
-
-  return { createdAt: createdAtDate, id };
 }
