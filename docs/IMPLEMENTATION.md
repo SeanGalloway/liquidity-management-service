@@ -493,3 +493,14 @@ close, and `/timeline` returns actual + projected series.
 - Round 3: payment failures keep the root cause in the message (persisted in `job_runs`);
   `projected[0]` equals today's actual balance, events keep their real pay dates, and overdue
   cashflows project onto tomorrow (the next daily run).
+
+## Portfolio reset (demo tool)
+
+- `POST /setup/reset`, behind `ENABLE_SIMULATION` (default off; `404 NOT_FOUND` when off).
+  `deletePortfolio` truncates ledger, cashflows, holdings, securities, orders and balance in one
+  statement; `yields`, `tenors` and `job_runs` are kept. Deleting the balance row returns the desk to
+  uninitialized, so the setup wizard asks for a new starting balance.
+- `TRUNCATE` bypasses the ledger's append-only row trigger on purpose — the reason it is flag-gated.
+- `SetupStatus.resetEnabled` tells the UI whether to show the Simulation panel (Portfolio) and the
+  Reset portfolio action on `/setup?manage=1`.
+- Time travel was scoped out (it needs a business-time column on the ledger; see the discussion).

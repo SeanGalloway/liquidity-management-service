@@ -40,6 +40,13 @@ API health check: <http://localhost:3000/api/v1/health>
 
 Run the full stack in containers with `docker compose --profile full up --build`.
 
+### Demo tools
+
+`ENABLE_SIMULATION=true` (set in `.env.example`) shows an orange **Simulation** panel on Portfolio
+and enables `POST /api/v1/setup/reset`, which erases the balance, holdings, orders and ledger
+(stored yields are kept) and returns the desk to setup. The reset `TRUNCATE`s the append-only
+ledger, so keep the flag off anywhere real.
+
 ## Status
 
 Scaffold only: database schema, API skeleton (`/health`, token-protected `/jobs/*` returning

@@ -25,6 +25,9 @@
   --color-pending-dot: #c77700;
   --color-negative: #a31d15;
   --color-negative-soft: #fce8e6;
+  --color-simulation: #9a3b00;
+  --color-simulation-soft: #fff3e6;
+  --color-simulation-line: #f3b27a;
 
   --color-bill: #1a44b8;
   --color-bill-soft: #e8eefc;

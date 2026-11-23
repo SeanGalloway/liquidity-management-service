@@ -49,6 +49,10 @@ export async function postSetup(startingBalanceCents: number) {
   return readBody<SetupStatus>(await api.setup.$post({ json: { startingBalanceCents } }));
 }
 
+export async function postSetupReset() {
+  return readBody<SetupStatus>(await api.setup.reset.$post());
+}
+
 export async function fetchBalance() {
   return readBody<Balance>(await api.balance.$get());
 }
