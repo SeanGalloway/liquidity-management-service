@@ -396,6 +396,12 @@ close, and `/timeline` returns actual + projected series.
 22. `createBalanceService` now takes `{ db }` (reads added). History ranges are New York calendar days,
     inclusive of `to`, converted to instants in the service.
 23. `toCashflowDto` lives in `handlers/cashflows.ts` and is reused by the holding detail.
+24. `markCashflowPaid` / `markHoldingMatured` stamp `now()` in SQL (no `paidAt` parameter).
+    Timeline treats overdue scheduled cashflows (job not yet run) as landing today.
+25. With every endpoint live, the `notImplemented` helper and `NOT_IMPLEMENTED` code were removed.
+26. Verified payment end to end by running `payDueCashflows` with a fake clock against a throwaway
+    copy of the dev database: re-running a day pays nothing, principal closes the holding, and the
+    final balance equals both the ledger sum and the earlier `/timeline` projection.
 
 ## Changes from PR review (Vertical 1)
 
@@ -471,3 +477,19 @@ close, and `/timeline` returns actual + projected series.
 - Round 3: `toNewYorkInstant` resolves the UTC offset at the target wall-clock time (midnight on
   DST changeover days was off by an hour); the recording db records isolation levels; holdings sort
   ends on `id`; `GET /balance` mapping tested.
+
+## Changes from PR review (Vertical 5)
+
+- `getTimeline` reads balance, daily closes and scheduled cashflows in one `repeatable read`
+  snapshot; daily closes come from SQL (`distinct on` the New York day) instead of loading the ledger.
+- Migration `0003`: `ledger_entries.occurred_at` defaults to `clock_timestamp()` (taken after the
+  balance lock at insert), so entry order matches balance order under concurrent writers.
+- `payDueCashflows` loops until nothing is due (no batch cap) so a startup run fully catches up.
+- `to < today` is rejected; the projection extends to the horizon; flat `CashflowsFilter`; 400s
+  documented on `/cashflows` and `/timeline`. Declined: paging `/cashflows` (Future work).
+- Round 2: `actual` is a step series that always ends today at the current balance (documented in
+  the contract); `paid_at`/`matured_at` use `clock_timestamp()` like the ledger; cashflow ordering
+  ends on `id`; a payment failure names its cashflow; market time zone passed to SQL as a parameter.
+- Round 3: payment failures keep the root cause in the message (persisted in `job_runs`);
+  `projected[0]` equals today's actual balance, events keep their real pay dates, and overdue
+  cashflows project onto tomorrow (the next daily run).

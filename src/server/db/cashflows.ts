@@ -1,14 +1,16 @@
 import 'server-only';
-import type { Insertable, Selectable } from 'kysely';
-import type { CashflowKind, CashflowStatus } from '../domain/types';
+import { sql, type Insertable, type Selectable, type Transaction } from 'kysely';
+import type { CashflowKind, CashflowStatus, IsoDate } from '../domain/types';
 import type { Executor } from './client';
-import type { ScheduledCashflows } from './schema';
+import type { DB, ScheduledCashflows } from './schema';
 
 type CashflowNarrowing = { kind: CashflowKind; status: CashflowStatus };
 
 export type ScheduledCashflow = Omit<Selectable<ScheduledCashflows>, keyof CashflowNarrowing> &
   CashflowNarrowing;
 export type NewScheduledCashflow = Insertable<ScheduledCashflows>;
+
+export type CashflowsFilter = { status?: CashflowStatus; from?: IsoDate; to?: IsoDate };
 
 export function insertScheduledCashflows(
   cashflows: NewScheduledCashflow[],
@@ -34,4 +36,48 @@ export function findCashflowsForHolding(
     .orderBy('kind')
     .$narrowType<CashflowNarrowing>()
     .execute();
+}
+
+export function findCashflows(filter: CashflowsFilter, ex: Executor): Promise<ScheduledCashflow[]> {
+  let query = ex
+    .selectFrom('scheduledCashflows')
+    .selectAll()
+    .orderBy('payDate')
+    .orderBy('kind')
+    .orderBy('id');
+
+  if (filter.status) query = query.where('status', '=', filter.status);
+  if (filter.from) query = query.where('payDate', '>=', filter.from);
+  if (filter.to) query = query.where('payDate', '<=', filter.to);
+
+  return query.$narrowType<CashflowNarrowing>().execute();
+}
+
+export function findNextDueCashflowForUpdate(
+  today: IsoDate,
+  trx: Transaction<DB>,
+): Promise<ScheduledCashflow | undefined> {
+  return trx
+    .selectFrom('scheduledCashflows')
+    .selectAll()
+    .where('status', '=', 'scheduled')
+    .where('payDate', '<=', today)
+    .orderBy('payDate')
+    .orderBy('kind')
+    .orderBy('id')
+    .limit(1)
+    .forUpdate()
+    .skipLocked()
+    .$narrowType<CashflowNarrowing>()
+    .executeTakeFirst();
+}
+
+export function markCashflowPaid(id: string, trx: Transaction<DB>): Promise<ScheduledCashflow> {
+  return trx
+    .updateTable('scheduledCashflows')
+    .set({ status: 'paid', paidAt: sql`clock_timestamp()` })
+    .where('id', '=', id)
+    .returningAll()
+    .$narrowType<CashflowNarrowing>()
+    .executeTakeFirstOrThrow();
 }

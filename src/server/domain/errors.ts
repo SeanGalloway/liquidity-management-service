@@ -8,7 +8,6 @@ export const ERROR_STATUS = {
   ALREADY_INITIALIZED: 409,
   NOT_INITIALIZED: 409,
   INSUFFICIENT_FUNDS: 409,
-  NOT_IMPLEMENTED: 501,
   NO_MARKET_DATA: 503,
 } as const;
 
@@ -27,8 +26,4 @@ export class DomainError extends Error {
   get status() {
     return ERROR_STATUS[this.code];
   }
-}
-
-export function notImplemented(feature: string): never {
-  throw new DomainError('NOT_IMPLEMENTED', `${feature} is not implemented yet`);
 }

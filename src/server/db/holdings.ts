@@ -1,8 +1,8 @@
 import 'server-only';
-import type { Insertable, Selectable } from 'kysely';
+import { sql, type Insertable, type Selectable, type Transaction } from 'kysely';
 import type { HoldingStatus, SecurityKind } from '../domain/types';
 import type { Executor } from './client';
-import type { Holdings } from './schema';
+import type { DB, Holdings } from './schema';
 import type { Security } from './securities';
 
 export type Holding = Omit<Selectable<Holdings>, 'status'> & { status: HoldingStatus };
@@ -47,6 +47,16 @@ export function findHoldingWithSecurity(
   ex: Executor,
 ): Promise<HoldingWithSecurity | undefined> {
   return selectHoldingsWithSecurity(ex).where('holdings.id', '=', id).executeTakeFirst();
+}
+
+export function markHoldingMatured(id: string, trx: Transaction<DB>): Promise<Holding> {
+  return trx
+    .updateTable('holdings')
+    .set({ status: 'matured', maturedAt: sql`clock_timestamp()` })
+    .where('id', '=', id)
+    .returningAll()
+    .$narrowType<{ status: HoldingStatus }>()
+    .executeTakeFirstOrThrow();
 }
 
 function selectHoldingsWithSecurity(ex: Executor) {
