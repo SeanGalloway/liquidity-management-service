@@ -52,8 +52,8 @@ export function BackfillProgress({ yields }: { yields: SetupStatus['yields'] }) 
       {failed && (
         <p className="rounded-md bg-negative-soft px-4 py-3 text-sm text-negative">
           Your balance is saved. Check the server log, then retry the backfill with{' '}
-          <code className="font-mono text-[13px]">POST /api/v1/jobs/backfill-yields</code> (job
-          token) and reload this page.
+          <code className="font-mono text-[13px]">POST /api/v1/jobs/sync-yields</code> (job token)
+          and reload this page.
         </p>
       )}
     </div>
