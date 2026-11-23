@@ -35,7 +35,7 @@ export type OrderRequest = { maturityDate: IsoDate; faceCents: number };
 export type SubmittedOrder = { order: OrderWithHolding; replayed: boolean };
 export type OrderPage = { orders: OrderWithHolding[]; nextCursor: string | null };
 export type OrdersQuery = { status?: OrderStatus; cursor?: string; limit: number };
-export type FillOutcome = 'none' | 'executed' | 'rejected' | 'failed';
+export type FillOutcome = 'none' | 'stalled' | 'executed' | 'rejected' | 'failed';
 export type FillSummary = { claimed: number; executed: number; rejected: number; failed: number };
 
 type Dependencies = {
@@ -102,7 +102,7 @@ export function createOrdersService({ db, clock, quotes, executeOrder, balance }
 
     for (let attempt = 0; attempt < FILL_BATCH_LIMIT; attempt++) {
       const outcome = await fillNextDueOrder();
-      if (outcome === 'none') break;
+      if (outcome === 'none' || outcome === 'stalled') break;
 
       summary.claimed += 1;
       summary[outcome] += 1;
@@ -126,10 +126,17 @@ export function createOrdersService({ db, clock, quotes, executeOrder, balance }
       if (!claimedOrderId) throw error;
 
       console.error(`order ${claimedOrderId} failed to fill`, error);
-      await markOrderFailed(claimedOrderId, String(error), db).catch((markError) =>
-        console.error(`could not mark order ${claimedOrderId} failed`, markError),
-      );
+      return markClaimedOrderFailed(claimedOrderId, error);
+    }
+  }
+
+  async function markClaimedOrderFailed(orderId: string, error: unknown): Promise<FillOutcome> {
+    try {
+      await markOrderFailed(orderId, String(error), db);
       return 'failed';
+    } catch (markError) {
+      console.error(`could not mark order ${orderId} failed; stopping this batch`, markError);
+      return 'stalled';
     }
   }
 

@@ -443,3 +443,8 @@ close, and `/timeline` returns actual + projected series.
 - `fill-orders` no longer advertises a `skipped` response; order status is narrowed in the repository.
 - Declined: moving the engine call outside the DB transaction (claim → execute → settle with
   reconciliation) — that is the real-broker flow already in Future work; mixed app/DB timestamps.
+- Round 2: a fill whose failure can't be recorded stops the batch (`stalled`) instead of being
+  re-claimed; fill test asserts ledger/holding/cashflow values; backstop debit rejection tested;
+  `OrderStatus` derived from the contract enum. Declined: tolerance on the quoted-total pre-check
+  (intentionally conservative), un-exporting `fillNextDueOrder` (test seam), CUSIP find-or-insert
+  (Future work).

@@ -93,22 +93,13 @@ function toOrderDto(order: OrderWithHolding) {
 }
 
 function toFillDto(order: OrderWithHolding) {
-  const { executedAt, executedYieldBps, executedTotalCents, pricedAsOf, holdingId } = order;
-  if (
-    !executedAt ||
-    !executedYieldBps ||
-    executedTotalCents === null ||
-    !pricedAsOf ||
-    !holdingId
-  ) {
-    return null;
-  }
+  if (order.status !== 'executed' || !order.holdingId) return null;
 
   return {
-    executedAt: executedAt.toISOString(),
-    yieldBps: Number(executedYieldBps),
-    totalCents: executedTotalCents,
-    pricedAsOf: pricedAsOf.toISOString(),
-    holdingId,
+    executedAt: order.executedAt!.toISOString(),
+    yieldBps: Number(order.executedYieldBps),
+    totalCents: order.executedTotalCents!,
+    pricedAsOf: order.pricedAsOf!.toISOString(),
+    holdingId: order.holdingId,
   };
 }

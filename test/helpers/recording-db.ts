@@ -13,7 +13,7 @@ import type { DB } from '@server/db/schema';
 
 export type RecordedQuery = { sql: string; parameters: readonly unknown[] };
 
-type ScriptedResult = Record<string, unknown>[] | QueryResult<Record<string, unknown>>;
+type ScriptedResult = Record<string, unknown>[] | QueryResult<Record<string, unknown>> | Error;
 
 export function createRecordingDb(scriptedResults: ScriptedResult[] = []) {
   const queries: RecordedQuery[] = [];
@@ -22,7 +22,11 @@ export function createRecordingDb(scriptedResults: ScriptedResult[] = []) {
   const connection: DatabaseConnection = {
     async executeQuery<R>(compiled: CompiledQuery): Promise<QueryResult<R>> {
       queries.push({ sql: compiled.sql, parameters: compiled.parameters });
-      return toQueryResult(pending.shift()) as QueryResult<R>;
+
+      const next = pending.shift();
+      if (next instanceof Error) throw next;
+
+      return toQueryResult(next) as QueryResult<R>;
     },
     async *streamQuery() {
       throw new Error('streaming is not supported by the recording db');
@@ -56,7 +60,9 @@ export function createRecordingDb(scriptedResults: ScriptedResult[] = []) {
   return { db, queries, sql: () => queries.map((query) => query.sql) };
 }
 
-function toQueryResult(result: ScriptedResult | undefined): QueryResult<Record<string, unknown>> {
+function toQueryResult(
+  result: Exclude<ScriptedResult, Error> | undefined,
+): QueryResult<Record<string, unknown>> {
   if (!result) return { rows: [] };
   return Array.isArray(result) ? { rows: result } : result;
 }

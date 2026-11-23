@@ -1,5 +1,7 @@
 import 'server-only';
 import type Decimal from 'decimal.js';
+import type { z } from 'zod';
+import type { OrderStatus as OrderStatusSchema } from '@shared/contracts';
 
 export type IsoDate = string;
 
@@ -7,7 +9,7 @@ export type DateRange = { from: IsoDate; to: IsoDate };
 
 export type SecurityKind = 'bill' | 'note' | 'bond';
 
-export type OrderStatus = 'pending' | 'executed' | 'rejected' | 'failed';
+export type OrderStatus = z.infer<typeof OrderStatusSchema>;
 
 export type Clock = {
   now: () => Date;

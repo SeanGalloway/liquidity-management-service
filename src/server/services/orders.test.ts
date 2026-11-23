@@ -97,7 +97,7 @@ describe('submitOrder', () => {
 
 describe('fillNextDueOrder', () => {
   it('debits cash, records the security, holding and cashflows, then marks executed — in one transaction', async () => {
-    const { service, sql } = createService([
+    const { service, sql, queries } = createService([
       [PENDING_ORDER],
       [BALANCE],
       [BALANCE],
@@ -123,6 +123,36 @@ describe('fillNextDueOrder', () => {
       'update "orders" set "executed_at" = $1, "executed_yield_bps" = $2, "executed_total_cents" = $3, "priced_as_of" = $4, "status" = $5, "updated_at" = now()',
       'commit',
     ]);
+
+    const [ledger, holding, cashflows] = [queries[4], queries[7], queries[8]];
+    expect(ledger?.parameters).toEqual(['buy', -73_992_886, PENDING_ORDER.id, 1_426_007_114]);
+    expect(holding?.parameters.slice(0, 6)).toEqual([
+      PENDING_ORDER.id,
+      'security-1',
+      75_000_000,
+      73_992_886,
+      0,
+      '432',
+    ]);
+    expect(cashflows?.parameters).toEqual(['holding-1', '2027-03-18', 'principal', 75_000_000]);
+  });
+
+  it('rejects at debit when the fill costs more than the cash the quote fitted within', async () => {
+    const executeOrder = vi.fn(async () => {
+      const filled = await createExecuteOrder({ quotes, clock })(PENDING_ORDER);
+      if (filled.status !== 'filled') throw new Error('expected a fill');
+      return { ...filled, fill: { ...filled.fill, totalCents: 80_000_000 } };
+    });
+    const funds = { id: 1, amountCents: 74_000_000 };
+    const { service, sql } = createService(
+      [[PENDING_ORDER], [funds], [funds], [{ ...PENDING_ORDER, status: 'rejected' }]],
+      executeOrder,
+    );
+
+    expect(await service.fillNextDueOrder()).toBe('rejected');
+    expect(sql()).toHaveLength(6);
+    expect(sql()[4]).toContain('update "orders" set "status" = $1, "reject_reason" = $2');
+    expect(sql().some((statement) => statement.startsWith('insert'))).toBe(false);
   });
 
   it('rejects for insufficient funds before calling the execution engine', async () => {
@@ -200,6 +230,25 @@ describe('fillDueOrders', () => {
       rejected: 2,
       failed: 0,
     });
+  });
+});
+
+describe('fillDueOrders when an order cannot be marked failed', () => {
+  it('stops the batch instead of re-claiming the same order', async () => {
+    const executeOrder = vi.fn(async () => {
+      throw new Error('connection reset');
+    });
+    const { service } = createService(
+      [[PENDING_ORDER], [BALANCE], new Error('database unavailable')],
+      executeOrder,
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const summary = await service.fillDueOrders();
+    consoleError.mockRestore();
+
+    expect(executeOrder).toHaveBeenCalledTimes(1);
+    expect(summary).toEqual({ claimed: 0, executed: 0, rejected: 0, failed: 0 });
   });
 });
 

@@ -1,7 +1,7 @@
 import 'server-only';
 import type Decimal from 'decimal.js';
 import type { Order } from '../db/orders';
-import { DomainError } from '../domain/errors';
+import { DomainError, type ErrorCode } from '../domain/errors';
 import type { Clock, IsoDate, SecuritySpec } from '../domain/types';
 import type { QuotesService } from './quotes';
 
@@ -18,7 +18,7 @@ export type Fill = {
 
 export type Execution = { status: 'filled'; fill: Fill } | { status: 'rejected'; reason: string };
 
-const REJECTION_BY_ERROR: Record<string, string> = {
+const REJECTION_BY_ERROR: Partial<Record<ErrorCode, string>> = {
   NO_MARKET_DATA: 'NO_MARKET_DATA',
   VALIDATION_FAILED: 'MATURITY_NO_LONGER_VALID',
 };
