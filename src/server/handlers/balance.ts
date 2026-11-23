@@ -22,6 +22,7 @@ const getBalanceHistory = createRoute({
   request: { query: DateRangeQuery },
   responses: {
     200: jsonBody(LedgerEntryList, 'Ledger entries, oldest first'),
+    400: errorBody('VALIDATION_FAILED'),
     409: errorBody('NOT_INITIALIZED'),
   },
 });

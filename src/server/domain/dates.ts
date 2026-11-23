@@ -1,4 +1,5 @@
 import 'server-only';
+import { DomainError } from './errors';
 import type { Clock, IsoDate } from './types';
 
 const MARKET_TIME_ZONE = 'America/New_York';
@@ -73,4 +74,10 @@ export function isEndOfMonth(date: IsoDate): boolean {
 
 export function toIsoDate(year: number, month: number, day: number): IsoDate {
   return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+}
+
+export function rejectInvertedRange(from: IsoDate | undefined, to: IsoDate | undefined) {
+  if (from && to && from > to) {
+    throw new DomainError('VALIDATION_FAILED', `from (${from}) is after to (${to})`);
+  }
 }

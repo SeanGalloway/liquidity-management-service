@@ -55,15 +55,29 @@ describe('postLedgerEntry', () => {
 
 describe('balance reads', () => {
   it('combines the balance with pending order exposure', async () => {
-    const { db } = createRecordingDb([
-      [{ ...BALANCE, updatedAt: new Date() }],
-      [{ count: 2, faceCents: 1_750_000_00 }],
-    ]);
+    const totals = { count: 2, faceCents: 1_750_000_00, quotedTotalCents: 1_727_000_00 };
+    const { db, sql } = createRecordingDb([[{ ...BALANCE, updatedAt: new Date() }], [totals]]);
 
     const summary = await createBalanceService({ db }).getBalance();
 
     expect(summary.balance.amountCents).toBe(1_000_00);
-    expect(summary.pendingOrders).toEqual({ count: 2, faceCents: 1_750_000_00 });
+    expect(summary.pendingOrders).toEqual(totals);
+    expect(sql()[0]).toBe('begin');
+    expect(sql()[2]).toContain('sum("quoted_total_cents")');
+    expect(sql()[3]).toBe('commit');
+  });
+
+  it('rejects an inverted history range without querying, and accepts a single day', async () => {
+    const { db, queries } = createRecordingDb([[]]);
+    const service = createBalanceService({ db });
+
+    await expect(
+      service.listBalanceHistory({ from: '2026-11-22', to: '2026-11-20' }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(queries).toHaveLength(0);
+
+    await service.listBalanceHistory({ from: '2026-11-22', to: '2026-11-22' });
+    expect(queries).toHaveLength(1);
   });
 
   it('filters history by New York calendar days, inclusive of the end date', async () => {

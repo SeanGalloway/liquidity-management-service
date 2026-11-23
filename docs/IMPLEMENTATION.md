@@ -465,3 +465,6 @@ close, and `/timeline` returns actual + projected series.
   still get the full ledger).
 - `kind`/`status`/`reason` are narrowed in the holdings, ledger and cashflow repositories (no DTO
   casts); the cashflow-total subquery uses the typed builder; `SecurityTerms` inlined.
+- Round 2: shared `rejectInvertedRange` in `domain/dates` (yields + balance, and cashflows next);
+  narrowing types declared once and reused for entity + `$narrowType`; `SecurityKind` and the
+  ledger reason derived from the contract; 400s documented on history and holdings list.

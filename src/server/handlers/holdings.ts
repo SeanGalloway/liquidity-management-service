@@ -12,7 +12,11 @@ const listHoldings = createRoute({
   tags: ['Holdings'],
   summary: 'Lots, soonest maturity first',
   request: { query: HoldingsQuery },
-  responses: { 200: jsonBody(HoldingList, 'Holdings'), 409: errorBody('NOT_INITIALIZED') },
+  responses: {
+    200: jsonBody(HoldingList, 'Holdings'),
+    400: errorBody('VALIDATION_FAILED'),
+    409: errorBody('NOT_INITIALIZED'),
+  },
 });
 
 const getHolding = createRoute({

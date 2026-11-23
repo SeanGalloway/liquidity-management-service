@@ -10,12 +10,12 @@ import type { Database } from '../db/client';
 import { findLedgerEntries, insertLedgerEntry, type LedgerEntry } from '../db/ledger';
 import { findPendingOrderTotals, type PendingOrderTotals } from '../db/orders';
 import type { DB } from '../db/schema';
-import { addDays, toNewYorkInstant } from '../domain/dates';
+import { addDays, rejectInvertedRange, toNewYorkInstant } from '../domain/dates';
 import { DomainError } from '../domain/errors';
-import type { DateRange } from '../domain/types';
+import type { DateRange, LedgerReason } from '../domain/types';
 
 export type CashMovement = {
-  reason: 'deposit' | 'buy' | 'coupon' | 'principal';
+  reason: LedgerReason;
   amountCents: number;
   orderId?: string;
   cashflowId?: string;
@@ -58,10 +58,8 @@ export function createBalanceService({ db }: { db: Database }) {
       });
   }
 
-  function listBalanceHistory(range: Partial<DateRange>): Promise<LedgerEntry[]> {
-    if (range.from && range.to && range.from > range.to) {
-      throw new DomainError('VALIDATION_FAILED', `from (${range.from}) is after to (${range.to})`);
-    }
+  async function listBalanceHistory(range: Partial<DateRange>): Promise<LedgerEntry[]> {
+    rejectInvertedRange(range.from, range.to);
 
     return findLedgerEntries(
       {

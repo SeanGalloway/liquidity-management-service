@@ -7,13 +7,14 @@ import type {
   HoldingStatus as HoldingStatusSchema,
   LedgerReason as LedgerReasonSchema,
   OrderStatus as OrderStatusSchema,
+  SecurityKind as SecurityKindSchema,
 } from '@shared/contracts';
 
 export type IsoDate = string;
 
 export type DateRange = { from: IsoDate; to: IsoDate };
 
-export type SecurityKind = 'bill' | 'note' | 'bond';
+export type SecurityKind = z.infer<typeof SecurityKindSchema>;
 
 export type OrderStatus = z.infer<typeof OrderStatusSchema>;
 export type HoldingStatus = z.infer<typeof HoldingStatusSchema>;

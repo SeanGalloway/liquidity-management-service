@@ -8,11 +8,15 @@ import type { Security } from './securities';
 export type Holding = Omit<Selectable<Holdings>, 'status'> & { status: HoldingStatus };
 export type NewHolding = Insertable<Holdings>;
 
+type HoldingWithSecurityNarrowing = {
+  status: HoldingStatus;
+  kind: SecurityKind;
+  cashflowTotalCents: number;
+};
+
 export type HoldingWithSecurity = Holding &
-  Pick<Security, 'cusip' | 'issueDate' | 'maturityDate' | 'couponRateBps' | 'synthetic'> & {
-    kind: SecurityKind;
-    cashflowTotalCents: number;
-  };
+  Pick<Security, 'cusip' | 'issueDate' | 'maturityDate' | 'couponRateBps' | 'synthetic'> &
+  HoldingWithSecurityNarrowing;
 
 export type HoldingStatusFilter = HoldingStatus | 'all';
 
@@ -70,5 +74,5 @@ function selectHoldingsWithSecurity(ex: Executor) {
         .$asScalar()
         .as('cashflowTotalCents'),
     )
-    .$narrowType<{ status: HoldingStatus; kind: SecurityKind; cashflowTotalCents: number }>();
+    .$narrowType<HoldingWithSecurityNarrowing>();
 }

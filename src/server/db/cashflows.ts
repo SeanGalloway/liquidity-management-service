@@ -4,12 +4,10 @@ import type { CashflowKind, CashflowStatus } from '../domain/types';
 import type { Executor } from './client';
 import type { ScheduledCashflows } from './schema';
 
-export type ScheduledCashflow = Omit<Selectable<ScheduledCashflows>, 'kind' | 'status'> & {
-  kind: CashflowKind;
-  status: CashflowStatus;
-};
-
 type CashflowNarrowing = { kind: CashflowKind; status: CashflowStatus };
+
+export type ScheduledCashflow = Omit<Selectable<ScheduledCashflows>, keyof CashflowNarrowing> &
+  CashflowNarrowing;
 export type NewScheduledCashflow = Insertable<ScheduledCashflows>;
 
 export function insertScheduledCashflows(
