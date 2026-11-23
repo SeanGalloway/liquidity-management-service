@@ -448,3 +448,6 @@ close, and `/timeline` returns actual + projected series.
   `OrderStatus` derived from the contract enum. Declined: tolerance on the quoted-total pre-check
   (intentionally conservative), un-exporting `fillNextDueOrder` (test seam), CUSIP find-or-insert
   (Future work).
+- Round 3: the funds pre-check reads the balance without locking (the debit's locked read decides),
+  so concurrent fills don't serialize on the balance row during execution; a failure that another
+  worker already settled counts as `skipped`, not `failed`; a stalled batch still counts its claim.

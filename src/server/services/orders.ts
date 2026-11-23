@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import type { Transaction } from 'kysely';
 import { insertScheduledCashflows } from '../db/cashflows';
 import type { Database } from '../db/client';
-import { findBalanceForUpdate } from '../db/balance';
+import { findBalance } from '../db/balance';
 import { insertHolding } from '../db/holdings';
 import {
   findNextDueOrderForUpdate,
@@ -35,7 +35,7 @@ export type OrderRequest = { maturityDate: IsoDate; faceCents: number };
 export type SubmittedOrder = { order: OrderWithHolding; replayed: boolean };
 export type OrderPage = { orders: OrderWithHolding[]; nextCursor: string | null };
 export type OrdersQuery = { status?: OrderStatus; cursor?: string; limit: number };
-export type FillOutcome = 'none' | 'stalled' | 'executed' | 'rejected' | 'failed';
+export type FillOutcome = 'none' | 'stalled' | 'skipped' | 'executed' | 'rejected' | 'failed';
 export type FillSummary = { claimed: number; executed: number; rejected: number; failed: number };
 
 type Dependencies = {
@@ -102,10 +102,11 @@ export function createOrdersService({ db, clock, quotes, executeOrder, balance }
 
     for (let attempt = 0; attempt < FILL_BATCH_LIMIT; attempt++) {
       const outcome = await fillNextDueOrder();
-      if (outcome === 'none' || outcome === 'stalled') break;
+      if (outcome === 'none') break;
 
       summary.claimed += 1;
-      summary[outcome] += 1;
+      if (outcome === 'stalled') break;
+      if (outcome !== 'skipped') summary[outcome] += 1;
     }
 
     return summary;
@@ -132,8 +133,8 @@ export function createOrdersService({ db, clock, quotes, executeOrder, balance }
 
   async function markClaimedOrderFailed(orderId: string, error: unknown): Promise<FillOutcome> {
     try {
-      await markOrderFailed(orderId, String(error), db);
-      return 'failed';
+      const marked = await markOrderFailed(orderId, String(error), db);
+      return marked ? 'failed' : 'skipped';
     } catch (markError) {
       console.error(`could not mark order ${orderId} failed; stopping this batch`, markError);
       return 'stalled';
@@ -141,8 +142,8 @@ export function createOrdersService({ db, clock, quotes, executeOrder, balance }
   }
 
   async function settleOrder(order: Order, trx: Transaction<DB>): Promise<'executed' | 'rejected'> {
-    const funds = await findBalanceForUpdate(trx);
-    if (funds.amountCents < order.quotedTotalCents) {
+    const funds = await findBalance(trx);
+    if (!funds || funds.amountCents < order.quotedTotalCents) {
       await markOrderRejected(order.id, 'INSUFFICIENT_FUNDS', trx);
       return 'rejected';
     }

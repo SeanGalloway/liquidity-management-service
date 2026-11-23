@@ -124,6 +124,9 @@ describe('fillNextDueOrder', () => {
       'commit',
     ]);
 
+    expect(queries[2]?.sql).not.toContain('for update');
+    expect(queries[3]?.sql).toContain('for update');
+
     const [ledger, holding, cashflows] = [queries[4], queries[7], queries[8]];
     expect(ledger?.parameters).toEqual(['buy', -73_992_886, PENDING_ORDER.id, 1_426_007_114]);
     expect(holding?.parameters.slice(0, 6)).toEqual([
@@ -233,8 +236,23 @@ describe('fillDueOrders', () => {
   });
 });
 
+describe('fillDueOrders when another worker settled the order first', () => {
+  it('does not count a failure it could not record', async () => {
+    const executeOrder = vi.fn(async () => {
+      throw new Error('connection reset');
+    });
+    const { service } = createService([[PENDING_ORDER], [BALANCE], [], []], executeOrder);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const summary = await service.fillDueOrders();
+    consoleError.mockRestore();
+
+    expect(summary).toEqual({ claimed: 1, executed: 0, rejected: 0, failed: 0 });
+  });
+});
+
 describe('fillDueOrders when an order cannot be marked failed', () => {
-  it('stops the batch instead of re-claiming the same order', async () => {
+  it('stops the batch, counting the claim, instead of re-claiming the same order', async () => {
     const executeOrder = vi.fn(async () => {
       throw new Error('connection reset');
     });
@@ -248,7 +266,7 @@ describe('fillDueOrders when an order cannot be marked failed', () => {
     consoleError.mockRestore();
 
     expect(executeOrder).toHaveBeenCalledTimes(1);
-    expect(summary).toEqual({ claimed: 0, executed: 0, rejected: 0, failed: 0 });
+    expect(summary).toEqual({ claimed: 1, executed: 0, rejected: 0, failed: 0 });
   });
 });
 
