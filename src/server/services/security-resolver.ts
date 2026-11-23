@@ -18,11 +18,16 @@ export function createSecurityResolver() {
   ): SecuritySpec {
     rejectOutOfRange(requestedMaturity, settleDate);
 
-    const kind = classifyByTerm(settleDate, requestedMaturity);
+    const rolledMaturity = rollForwardToBusinessDay(requestedMaturity);
+    const kind = classifyByTerm(settleDate, rolledMaturity);
 
     if (kind === 'bill') {
-      const maturityDate = rollForwardToBusinessDay(requestedMaturity);
-      return synthetic({ kind, issueDate: settleDate, maturityDate, couponRateBps: null });
+      return synthetic({
+        kind,
+        issueDate: settleDate,
+        maturityDate: rolledMaturity,
+        couponRateBps: null,
+      });
     }
 
     const { yieldBps } = interpolateYield(curve.points, settleDate, requestedMaturity);

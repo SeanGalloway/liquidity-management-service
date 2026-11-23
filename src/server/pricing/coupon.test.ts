@@ -30,6 +30,6 @@ describe('calculateCouponPrice', () => {
     const result = price(463, 463, '2026-11-23', '2028-06-15');
 
     expect(result.accruedPer100.toDecimalPlaces(6).toNumber()).toBe(2.036694);
-    expect(result.cleanPer100.toNumber()).toBeCloseTo(100, 1);
+    expect(result.cleanPer100.toDecimalPlaces(6).toNumber()).toBe(99.99719);
   });
 });

@@ -404,3 +404,14 @@ close, and `/timeline` returns actual + projected series.
   Treasury requests time out after 30 s; health goes through `yields.getCoverage()`; job run
   status is narrowed in the repository. Declined: a `source` filter on curve queries (single
   source today — add with the second vendor) and renaming setup's `backfill` field (UI contract).
+
+## Changes from PR review (Vertical 2)
+
+- Clean cents are computed from the **published six-decimal price** (Treasury convention), so
+  price × face always equals the amount charged.
+- Bill vs. note is decided on the business-day-rolled maturity, so a bill never exceeds one year.
+- `calculateQuote` branches on `security.kind`; coupon pricing reads the rate from the security and
+  throws if a coupon security has none or no coupon dates remain.
+- Declined: T+1 settlement (T+0 is the agreed simplification; T+1 in Future work, now pinned by a
+  weekday test); reusing the resolver's yield in the quote (a real off-par security's yield ≠ coupon);
+  dating synthetic notes at settlement (seasoned-security model is intentional).

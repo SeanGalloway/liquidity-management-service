@@ -23,6 +23,13 @@ describe('resolveSecurity', () => {
     );
   });
 
+  it('never stretches a bill past one year by rolling its maturity', () => {
+    const security = resolveSecurity('2027-11-27', NOV_20_2026_CURVE, '2026-11-27');
+
+    expect(security.kind).toBe('note');
+    expect(security.maturityDate).toBe('2027-11-27');
+  });
+
   it('resolves longer maturities to par notes on their nominal dates', () => {
     const security = resolveSecurity('2028-11-23', NOV_20_2026_CURVE, SETTLE);
 

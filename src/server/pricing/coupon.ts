@@ -27,7 +27,9 @@ export function calculateCouponPrice({
   const couponPer100 = couponRateBps.div(200);
   const periodYield = yieldBps.div(20_000).plus(1);
 
-  const nextCouponDate = schedule.couponDates[0] ?? settleDate;
+  const nextCouponDate = schedule.couponDates[0];
+  if (!nextCouponDate) throw new Error(`No coupon dates remain after ${settleDate}`);
+
   const periodDays = calculateDaysBetween(schedule.previousCouponDate, nextCouponDate);
   const fractionToNext = new Decimal(calculateDaysBetween(settleDate, nextCouponDate)).div(
     periodDays,

@@ -54,7 +54,32 @@ describe('quoteOrder', () => {
       'coupon',
       'principal',
     ]);
-    expect(Math.abs(quote.cleanCents - 100_000_000)).toBeLessThan(10_000);
+    expect(quote.pricePer100.toNumber()).toBe(99.997253);
+    expect(quote.cleanCents).toBe(99_997_253);
+    expect(quote.accruedCents).toBe(2_013_499);
+  });
+
+  it('charges cents from the published six-decimal price', async () => {
+    const { service } = createService();
+
+    const quote = await service.quoteOrder('2027-03-18', 10_000_000_000);
+
+    expect(quote.pricePer100.toNumber()).toBe(98.657181);
+    expect(quote.cleanCents).toBe(9_865_718_100);
+  });
+
+  it('settles on the trade date when today is a business day', async () => {
+    const getCurve = vi.fn(async () => NOV_20_2026_CURVE);
+    const service = createQuotesService({
+      clock: createFakeClock('2026-11-24T17:00:00Z'),
+      yields: { getCurve } as unknown as YieldsService,
+      securityResolver: createSecurityResolver(),
+    });
+
+    const quote = await service.quoteOrder('2027-03-18', 75_000_000);
+
+    expect(quote.settleDate).toBe('2026-11-24');
+    expect(quote.days).toBe(114);
   });
 
   it('pays coupons on the next business day when the coupon date is a weekend', async () => {

@@ -48,11 +48,13 @@ export function calculateQuote({ security, curve, faceCents, settleDate }: Quote
     security.maturityDate,
   );
 
-  const priced = security.couponRateBps
-    ? priceCouponSecurity(security.couponRateBps, yieldBps, security, faceCents, settleDate)
-    : priceBill(yieldBps, security, faceCents, settleDate);
+  const priced =
+    security.kind === 'bill'
+      ? priceBill(security, yieldBps, faceCents, settleDate)
+      : priceCouponSecurity(security, yieldBps, faceCents, settleDate);
 
-  const cleanCents = toCents(priced.cleanPer100, faceCents);
+  const pricePer100 = priced.cleanPer100.toDecimalPlaces(PRICE_DECIMALS, Decimal.ROUND_HALF_UP);
+  const cleanCents = toCents(pricePer100, faceCents);
   const accruedCents = toCents(priced.accruedPer100, faceCents);
   const totalCents = cleanCents + accruedCents;
   const cashflowTotal = priced.cashflows.reduce((sum, cashflow) => sum + cashflow.amountCents, 0);
@@ -63,7 +65,7 @@ export function calculateQuote({ security, curve, faceCents, settleDate }: Quote
     days: calculateDaysBetween(settleDate, security.maturityDate),
     yieldBps,
     interpolatedFrom,
-    pricePer100: priced.cleanPer100.toDecimalPlaces(PRICE_DECIMALS),
+    pricePer100,
     cleanCents,
     accruedCents,
     totalCents,
@@ -75,8 +77,8 @@ export function calculateQuote({ security, curve, faceCents, settleDate }: Quote
 }
 
 function priceBill(
-  yieldBps: Decimal,
   security: SecuritySpec,
+  yieldBps: Decimal,
   faceCents: number,
   settleDate: IsoDate,
 ): PricedSecurity {
@@ -88,12 +90,14 @@ function priceBill(
 }
 
 function priceCouponSecurity(
-  couponRateBps: Decimal,
-  yieldBps: Decimal,
   security: SecuritySpec,
+  yieldBps: Decimal,
   faceCents: number,
   settleDate: IsoDate,
 ): PricedSecurity {
+  const couponRateBps = security.couponRateBps;
+  if (!couponRateBps) throw new Error(`A ${security.kind} needs a coupon rate`);
+
   const schedule = calculateCouponSchedule(settleDate, security.maturityDate);
   const price = calculateCouponPrice({ couponRateBps, yieldBps, schedule, settleDate });
   const couponCents = toCents(couponRateBps.div(200), faceCents);
